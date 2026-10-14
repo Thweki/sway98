@@ -131,6 +131,27 @@ everyone: GTK applications only read their theme at startup (restart them),
 Firefox needs a full quit (`Ctrl+Shift+Q`) rather than a window reload, and Qt
 applications need a new login before `QT_QPA_PLATFORMTHEME` reaches them.
 
+## Development
+
+Everything is Bash; there is no build step, and the installer's only runtime
+dependencies are `curl`, `git` and coreutils.
+
+```
+make check              # shellcheck, dry run, install/uninstall roundtrip
+make check-real         # the same against a real Chicago95 checkout
+tests/screenshots.sh    # regenerate the images in docs/screenshots/
+```
+
+`make check` needs `shellcheck` (`pacman -S shellcheck` / `apt install shellcheck`).
+Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
+the machine running them is modified — including the screenshot generator, which
+renders a private headless sway session instead of photographing your own desktop.
+
+The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and
+the invariants the test suite enforces are written down in [AGENTS.md](AGENTS.md);
+the implementation plan and the reasoning behind the design decisions are in
+[PLAN.md](PLAN.md). Both are in Chinese, like the rest of the working notes.
+
 ## Credits
 
 sway98 is a thin layer on other people's work. The full list with licenses is in

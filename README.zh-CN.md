@@ -115,6 +115,23 @@ sudo pacman -S --needed sway waybar kitty wofi mako swaylock fcitx5 fcitx5-gtk \
 GTK 应用只在启动时读主题（要重启）、Firefox 必须完全退出（`Ctrl+Shift+Q`）再开、
 Qt 应用的 `QT_QPA_PLATFORMTHEME` 需要重新登录才会到达。
 
+## 开发
+
+全部是 Bash，没有构建步骤；安装器的运行期依赖只有 `curl`、`git` 和 coreutils。
+
+```
+make check              # shellcheck + 干跑 + 装/卸往返
+make check-real         # 对真实 Chicago95 跑一遍同样的流程
+tests/screenshots.sh    # 重生成 docs/screenshots/ 里的截图
+```
+
+`make check` 需要 `shellcheck`（`pacman -S shellcheck` / `apt install shellcheck`）。
+所有测试都跑在 `tests/sandbox/` 里的一次性 `$HOME` 下，不会改动运行它的机器——
+截图生成器也一样：它渲染一个私有的一次性无头 sway 会话，而不是给你的桌面拍照。
+
+模块契约（一个 `modules/<id>/module.sh`，可选 `files/`）与测试所强制的不变量写在
+[AGENTS.md](AGENTS.md)；实施计划与设计决策的理由写在 [PLAN.md](PLAN.md)。
+
 ## 鸣谢与授权
 
 完整清单见 [CREDITS.md](CREDITS.md)。简版：**Chicago95**（grassmunk 与贡献者）、
