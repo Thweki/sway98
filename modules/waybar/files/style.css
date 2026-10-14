@@ -1,0 +1,115 @@
+/* sway98 — Windows 98 taskbar skin for Waybar.
+ *
+ * The whole look comes from one trick: Win95 replaced rounded corners and shadows
+ * with two-tone bevels. Outset (raised) elements get light borders on the
+ * top/left and dark ones on the bottom/right; inset (pressed) elements get the
+ * opposite. #c0c0c0 is the classic button face, #dfdfdf the highlight,
+ * #808080 the shadow and #404040 the darkest edge. */
+
+* {
+    font-family: "Liberation Sans", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+    box-shadow: none;
+}
+
+window#waybar {
+    background: #c0c0c0;
+    color: #000000;
+    border-top: 2px solid #dfdfdf;
+}
+
+/* Workspace buttons: raised taskbar buttons */
+#workspaces button {
+    padding: 0 12px;
+    margin: 3px 2px;
+    background: #c0c0c0;
+    color: #000000;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
+}
+
+/* Focused/visible workspace: pressed in */
+#workspaces button.focused,
+#workspaces button.visible {
+    background: #dfdfdf;
+    color: #000000;
+    border-top: 2px solid #404040;
+    border-left: 2px solid #404040;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+}
+
+#workspaces button.urgent {
+    background: #c0c0c0;
+    color: #ff0000;
+}
+
+#workspaces button:hover {
+    background: #d4d0c8;
+}
+
+/* Focused window title: raised bar, like the taskbar's active button */
+#window {
+    padding: 0 12px;
+    margin: 3px 4px;
+    background: #c0c0c0;
+    color: #000000;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
+}
+
+/* Active sway mode (resize, ...): pressed, title-bar blue */
+#mode {
+    padding: 0 10px;
+    margin: 3px 2px;
+    background: #000080;
+    color: #ffffff;
+    border-top: 2px solid #404040;
+    border-left: 2px solid #404040;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+}
+
+/* System tray: recessed panel */
+#tray {
+    padding: 0 8px;
+    margin: 3px 2px;
+    background: #c0c0c0;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+}
+
+/* Status cells: recessed, like the clock area of the Win98 tray */
+#pulseaudio,
+#network,
+#cpu,
+#memory,
+#battery,
+#clock {
+    padding: 0 8px;
+    margin: 3px 2px;
+    background: #c0c0c0;
+    color: #000000;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+}
+
+#battery.warning {
+    color: #808000;
+}
+
+#battery.critical {
+    color: #ff0000;
+}

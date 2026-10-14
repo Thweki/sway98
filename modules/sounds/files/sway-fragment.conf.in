@@ -1,0 +1,2 @@
+# sway98 — play the Windows 98 startup sound once the session is up.
+exec @LOGIN_CMD@

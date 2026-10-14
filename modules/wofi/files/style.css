@@ -1,0 +1,57 @@
+/* sway98 — Windows 98 skin for wofi.
+ * Grey dialog body, white recessed input field, selection in title-bar blue. */
+
+window {
+    background: #c0c0c0;
+    color: #000000;
+    border: 2px outset #c0c0c0;
+    border-radius: 0;
+    font-family: "Liberation Sans";
+}
+
+#input {
+    background: #ffffff;
+    color: #000000;
+    border: 2px inset #c0c0c0;
+    border-radius: 0;
+    margin: 6px;
+    padding: 4px 6px;
+}
+
+#input:focus {
+    box-shadow: none;
+    outline: none;
+}
+
+#outer-box {
+    margin: 2px;
+}
+
+#entry {
+    padding: 4px 6px;
+    border-radius: 0;
+    color: #000000;
+}
+
+#entry:selected {
+    background: #000080;
+    color: #ffffff;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+}
+
+#text {
+    color: inherit;
+}
+
+scrollbar {
+    background: #dfdfdf;
+    border-radius: 0;
+}
+
+scrollbar slider {
+    background: #c0c0c0;
+    border: 2px outset #c0c0c0;
+    border-radius: 0;
+}

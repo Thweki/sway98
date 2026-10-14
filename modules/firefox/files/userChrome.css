@@ -1,0 +1,244 @@
+/* ============================================================
+ * sway98 — Windows 98 chrome for Firefox.
+ *
+ * Win95/98 replaced rounded corners and shadows with two-tone bevels: raised
+ * elements have light borders on the top/left, pressed ones have them on the
+ * bottom/right. The palette is the classic one — button face #c0c0c0, highlight
+ * #ffffff, shadow #808080, dark edge #404040, title bar #000080 with the
+ * #1084d0 gradient to the right.
+ *
+ * userChrome.css depends on Firefox internals, so treat this as best effort.
+ * Requires toolkit.legacyUserProfileCustomizations.stylesheets (set by user.js).
+ * ============================================================ */
+
+:root {
+  --toolbar-bgcolor: #c0c0c0 !important;
+  --toolbar-color: #000000 !important;
+  --toolbar-field-background-color: #ffffff !important;
+  --toolbar-field-color: #000000 !important;
+  --toolbar-field-border-color: #808080 !important;
+  --toolbarseparator-color: #808080 !important;
+  --chrome-content-separator-color: #808080 !important;
+  --lwt-accent-color: #c0c0c0 !important;
+  --lwt-text-color: #000000 !important;
+  --lwt-selected-tab-background-color: #ffffff !important;
+  --toolbarbutton-hover-background: #d4d0c8 !important;
+  --toolbarbutton-active-background: #dfdfdf !important;
+  --arrowpanel-background: #c0c0c0 !important;
+  --arrowpanel-color: #000000 !important;
+  --arrowpanel-border-color: #808080 !important;
+  --panel-separator-color: #808080 !important;
+  --tab-min-height: 26px !important;
+  --toolbarbutton-border-radius: 0 !important;
+  --tab-border-radius: 0 !important;
+}
+
+/* ---- Title bar: the classic blue gradient ---- */
+#titlebar {
+  background: linear-gradient(to right, #000080, #1084d0) !important;
+}
+.titlebar-text {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+.titlebar-button {
+  background-color: #c0c0c0 !important;
+  color: #000000 !important;
+  border: 2px outset #c0c0c0 !important;
+  border-radius: 0 !important;
+}
+
+/* ---- Menu bar: always visible, Win98 applications never hid it ---- */
+#toolbar-menubar,
+#toolbar-menubar[autohide="true"],
+#toolbar-menubar[autohide="true"][inactive="true"],
+#toolbar-menubar[inactive] {
+  display: -moz-box !important;
+  visibility: visible !important;
+  min-height: 24px !important;
+  background: #c0c0c0 !important;
+}
+#toolbar-menubar > #menubar-items,
+#menubar-items {
+  visibility: visible !important;
+}
+#toolbar-menubar .titlebar-button {
+  background-color: transparent !important;
+  border: none !important;
+}
+menubar > menu {
+  color: #000000 !important;
+  padding: 3px 8px !important;
+  font-size: 12px !important;
+}
+menubar > menu:hover,
+menubar > menu[open] {
+  background-color: #000080 !important;
+  color: #ffffff !important;
+}
+
+/* ---- Toolbars: flat grey, square corners ---- */
+#nav-bar,
+#PersonalToolbar,
+#TabsToolbar,
+#toolbar-menubar {
+  background: #c0c0c0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+#navigator-toolbox {
+  background: #c0c0c0 !important;
+  border-bottom: 2px outset #c0c0c0 !important;
+}
+
+/* ---- Tabs: taskbar buttons, raised and pressed ---- */
+.tabbrowser-tab {
+  padding: 0 !important;
+}
+.tabbrowser-tab .tab-background {
+  border-radius: 0 !important;
+  border-top: 2px solid #ffffff !important;
+  border-left: 2px solid #ffffff !important;
+  border-bottom: 2px solid #404040 !important;
+  border-right: 2px solid #404040 !important;
+  background: #c0c0c0 !important;
+  box-shadow: none !important;
+  margin: 2px 1px !important;
+}
+/* Selected tab: pressed, like the active taskbar button */
+.tabbrowser-tab[selected] .tab-background {
+  background: #ffffff !important;
+  border-top: 2px solid #404040 !important;
+  border-left: 2px solid #404040 !important;
+  border-bottom: 2px solid #ffffff !important;
+  border-right: 2px solid #ffffff !important;
+}
+.tabbrowser-tab:hover:not([selected]) .tab-background {
+  background: #d4d0c8 !important;
+}
+.tab-content {
+  color: #000000 !important;
+}
+.tab-label {
+  font-size: 12px !important;
+}
+.tab-close-button {
+  border-radius: 0 !important;
+}
+#tabs-newtab-button,
+#new-tab-button {
+  border: 2px outset #c0c0c0 !important;
+  border-radius: 0 !important;
+  background: #c0c0c0 !important;
+}
+
+/* ---- Address bar and search box: white, recessed input fields ---- */
+#urlbar,
+#search-container {
+  margin: 2px 4px !important;
+}
+#urlbar-background,
+#urlbar-input-container,
+#searchbar {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-top: 2px solid #404040 !important;
+  border-left: 2px solid #404040 !important;
+  border-bottom: 2px solid #ffffff !important;
+  border-right: 2px solid #ffffff !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+#urlbar[focused] > #urlbar-background,
+#urlbar[open] > #urlbar-background,
+#urlbar[breakout] > #urlbar-background,
+#urlbar[breakout-extend] > #urlbar-background {
+  background: #ffffff !important;
+  border-top: 2px solid #404040 !important;
+  border-left: 2px solid #404040 !important;
+  border-bottom: 2px solid #ffffff !important;
+  border-right: 2px solid #ffffff !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+#urlbar-input,
+.searchbar-textbox {
+  color: #000000 !important;
+}
+#urlbar-results,
+.urlbarView {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px outset #c0c0c0 !important;
+  border-radius: 0 !important;
+}
+.urlbarView-row[selected] {
+  background: #000080 !important;
+  color: #ffffff !important;
+}
+
+/* ---- Toolbar buttons: raised on hover, pressed while active ---- */
+toolbarbutton,
+.toolbarbutton-1 {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.toolbarbutton-1 > .toolbarbutton-icon,
+.toolbarbutton-1 > .toolbarbutton-badge-stack {
+  border-radius: 0 !important;
+}
+.toolbarbutton-1:hover {
+  background: #c0c0c0 !important;
+  border: 2px outset #c0c0c0 !important;
+}
+.toolbarbutton-1:active,
+.toolbarbutton-1[open] {
+  background: #dfdfdf !important;
+  border: 2px inset #c0c0c0 !important;
+}
+
+/* ---- Menus: square, grey, selection in title-bar blue ---- */
+menupopup,
+panel,
+.panel-arrowcontent {
+  border-radius: 0 !important;
+}
+menupopup {
+  background: #c0c0c0 !important;
+  border: 2px outset #c0c0c0 !important;
+}
+menupopup > menuitem,
+menupopup > menu {
+  color: #000000 !important;
+}
+menupopup > menuitem:hover:not([disabled]),
+menupopup > menu:hover:not([disabled]),
+.panel-subview-body toolbarbutton:hover {
+  background-color: #000080 !important;
+  color: #ffffff !important;
+}
+menuseparator {
+  border-top: 1px solid #808080 !important;
+  border-bottom: 1px solid #ffffff !important;
+}
+
+/* ---- Scrollbars ---- */
+scrollbar,
+scrollbar slider {
+  border-radius: 0 !important;
+}
+scrollbar slider {
+  background: #c0c0c0 !important;
+  border: 2px outset #c0c0c0 !important;
+}
+scrollbar {
+  background: #dfdfdf !important;
+}
+
+/* ---- Bookmarks bar and bottom box ---- */
+#PersonalToolbar toolbarbutton {
+  font-size: 12px !important;
+}
+#browser-bottombox {
+  background: #c0c0c0 !important;
+}

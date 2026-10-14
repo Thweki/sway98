@@ -1,0 +1,8 @@
+[Sound Theme]
+Name=sway98
+Comment=Windows 98 system sounds, downloaded on request by sway98
+Inherits=freedesktop
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo

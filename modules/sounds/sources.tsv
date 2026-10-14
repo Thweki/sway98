@@ -1,0 +1,27 @@
+# Windows 98 system sounds — download sources.
+#
+# Tab separated: <freedesktop sound name> <archive.org item> <path inside item> <sha1>
+#
+# The names on the left are the freedesktop.org sound naming spec entries that
+# libcanberra and GTK applications ask for. Everything here is Microsoft
+# copyright and is fetched at the user's request only — the files never live in
+# this repository.
+#
+# Item: "Microsoft: Windows 98 System sounds (1998) winsounds.com" from the
+# Internet Archive item Microsoft_Windows-98-System-Sounds.
+#
+# Do not use https://archive.org/download/<item>/<path> with plain curl here: the
+# 302 it returns points at storage nodes that drop the TLS handshake on some
+# networks. fetch-ms-sounds.sh resolves the node through the metadata API first.
+
+desktop-login	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 startup.wav	5427a0f87cc099d5ea36b7b954bfc61e055ad756
+desktop-logout	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 exit windows.wav	c1c249442f05eebb291e7330a6ea79a146097fda
+bell	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 beep.wav	82dcf73046115bf7c0357990efa1ba1ffb87e798
+message	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 default sound.wav	5f3faba6714487f5c66e0b0e8a17733f516f021e
+message-new-instant	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 menu popup.wav	8b5c8c50439e4bfc3fe13afcb6b7ae9c0d960029
+dialog-error	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 critical stop.wav	690e3f02695239302126af01d701aef83a6c1e7d
+dialog-warning	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 exclamation.wav	492539d273eacb0efd64d48c5182428a707669de
+dialog-question	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 question.wav	203e9ec37f38d573ae55294f261638f4c5edf3aa
+dialog-information	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 asterisk.wav	1c94cb579e9ba29c59d17f56acea3233d675b1fb
+trash-empty	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 empty recycle bin.wav	1400ee09aaf9eec58d0e6ffe01b267ee4fd562c0
+complete	Microsoft_Windows-98-System-Sounds	Windows-98-sound-effects/Windows98Sounds_[winsounds.com]_1958/Windows 98/Windows 98 restore up.wav	f39e12822c69a8e0145030d0018993d6a63b350d

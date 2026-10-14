@@ -1,0 +1,24 @@
+# sway98 — Windows 98 lock screen.
+# Title-bar blue background, grey ring, white text. Keys are swaylock long
+# options without the leading dashes.
+
+color=000080
+inside-color=000080
+ring-color=c0c0c0
+line-color=808080
+text-color=ffffff
+key-hl-color=ffffff
+bs-hl-color=ff0000
+separator-color=808080
+
+inside-ver-color=000080
+ring-ver-color=dfdfdf
+text-ver-color=ffffff
+inside-wrong-color=800000
+ring-wrong-color=c0c0c0
+text-wrong-color=ffffff
+
+indicator-radius=90
+indicator-thickness=8
+font=Liberation Sans
+show-failed-attempts

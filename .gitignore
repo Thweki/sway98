@@ -1,0 +1,3 @@
+tests/sandbox/
+tests/sandbox-real/
+*.log

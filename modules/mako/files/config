@@ -1,0 +1,20 @@
+# sway98 — Windows 98 notification popups.
+# Grey dialog, square corners, recessed border, blue progress bar.
+
+background-color=#c0c0c0
+text-color=#000000
+border-color=#808080
+border-size=2
+border-radius=0
+font=Liberation Sans 10
+width=320
+padding=8
+margin=8
+default-timeout=5000
+anchor=bottom-right
+progress-color=over #000080
+
+[urgency=critical]
+border-color=#ff0000
+text-color=#000000
+default-timeout=0
