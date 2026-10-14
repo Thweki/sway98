@@ -119,6 +119,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 - **shellcheck 必须零告警**（`make check`）。习惯写法：数组引用加引号、`[[ ]]`、`read -r`、避免 `ls` 解析。
 - 变量/函数：`sway98_*`（对外）、`_sway98_*`（内部）、全局大写。
 - 语言策略：**代码注释、README、CREDITS 用英文**（面向 GitHub 受众）；**AGENTS.md、PLAN.md、docs 中文**（本地工作文档，发布前可择机翻译）。
+- **`PLAN.md` 是本地工作文档，已列入 `.gitignore`，禁止提交**：其中的决策记录、风险登记与待定问题只给维护者看。因此不要在任何入库文件里把它写成链接——README 只说明"实施计划保存在本地"。
 - 提交信息：英文，`<area>: <imperative summary>`，例如 `sway: add marker include block`。
 
 ---
@@ -188,4 +189,4 @@ tests/screenshots.sh                    # 在一次性无头 sway 里重生成 R
 
 ## 10. 路线图
 
-见 `PLAN.md`。当前实现范围以 PLAN.md 的勾选框为准；新增模块前先在 PLAN.md 里把它加进模块矩阵。
+见 `PLAN.md`（本地、不入库，见 §7 语言策略）。当前实现范围以其勾选框为准；新增模块前先在 `PLAN.md` 里把它加进模块矩阵。

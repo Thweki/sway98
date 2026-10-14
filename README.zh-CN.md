@@ -130,7 +130,7 @@ tests/screenshots.sh    # 重生成 docs/screenshots/ 里的截图
 截图生成器也一样：它渲染一个私有的一次性无头 sway 会话，而不是给你的桌面拍照。
 
 模块契约（一个 `modules/<id>/module.sh`，可选 `files/`）与测试所强制的不变量写在
-[AGENTS.md](AGENTS.md)；实施计划与设计决策的理由写在 [PLAN.md](PLAN.md)。
+[AGENTS.md](AGENTS.md)；实施计划与决策记录只保存在维护者本地，不随仓库分发。
 
 ## 鸣谢与授权
 

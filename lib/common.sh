@@ -22,7 +22,9 @@ SWAY98_SYSTEM="${SWAY98_SYSTEM:-0}"
 SWAY98_LOG="${SWAY98_LOG:-}"
 SWAY98_MODULE="${SWAY98_MODULE:-}"   # current module id, used by the manifest layer
 
-# Chicago95 upstream is pinned; see PLAN.md D6. Never track master.
+# Chicago95 upstream is pinned to a known-good commit instead of tracking master:
+# upstream has already reorganised its directory layout once, which broke every
+# hardcoded path. Bump this deliberately, after running `make check-real`.
 SWAY98_CHICAGO95_URL="https://github.com/grassmunk/Chicago95.git"
 SWAY98_CHICAGO95_REF="e89583c9a0fbc5022d099fbe6f12132a756027a8"
 

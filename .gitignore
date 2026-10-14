@@ -1,3 +1,7 @@
 tests/sandbox/
 tests/sandbox-real/
 *.log
+
+# Local working document: implementation plan, decision log and risk register.
+# Kept on the maintainer's machine only — see AGENTS.md §7.
+PLAN.md

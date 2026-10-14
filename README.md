@@ -148,9 +148,10 @@ the machine running them is modified — including the screenshot generator, whi
 renders a private headless sway session instead of photographing your own desktop.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and
-the invariants the test suite enforces are written down in [AGENTS.md](AGENTS.md);
-the implementation plan and the reasoning behind the design decisions are in
-[PLAN.md](PLAN.md). Both are in Chinese, like the rest of the working notes.
+the invariants the test suite enforces are written down in [AGENTS.md](AGENTS.md)
+(in Chinese, like the rest of the working notes). The implementation plan and the
+decision log stay local to the maintainer's machine and are not part of the
+repository.
 
 ## Credits
 
