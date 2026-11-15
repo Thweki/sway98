@@ -27,7 +27,9 @@ export SWAY98_ROOT
 DEST="${1:-$SWAY98_STATE/sounds-src}"
 if [[ "${2:-}" == "--dry-run" || "${1:-}" == "--dry-run" ]]; then
     export SWAY98_DRY_RUN=1
-    DEST="$SWAY98_STATE/sounds-src"
+    if [[ "${1:-}" == "--dry-run" ]]; then
+        DEST="$SWAY98_STATE/sounds-src"
+    fi
 fi
 
 SOURCES="$SWAY98_ROOT/modules/sounds/sources.tsv"
@@ -37,7 +39,9 @@ fetched=0
 cached=0
 failed=0
 
-mkdir -p -- "$DEST"
+if ! is_dry_run; then
+    mkdir -p -- "$DEST"
+fi
 
 while IFS=$'\t' read -r name item path sha1; do
     [[ -n "${name:-}" && "$name" != \#* ]] || continue
