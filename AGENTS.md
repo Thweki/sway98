@@ -78,7 +78,7 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `install_dir <src-dir> <dest-dir>` | 逐文件 install_file + 记录目录创建 |
 | `record_cmd <module> <revert-cmd>` | 记录一条回滚命令（按逆序执行） |
 | `include_block <file> <block-id> <line>...` | 用 `# >>> id >>>` / `# <<< id <<<` 标记块幂等加一行 include |
-| `ini_set <file> <section> <key> <value>` | 幂等改 INI 键，首次改动时整文件进 manifest |
+| `ini_set <file> <section> <key> <value>` | 幂等改 INI 键，首次改动时整文件进 manifest；支持 LF / CRLF，生成行沿用首行换行符，新文件用 LF |
 | `http_get <url> <dest>` | curl 带重试/超时/UA |
 | `archive_org_fetch <item> <remote-path> <dest> <sha1>` | 见 §6，唯一允许的微软素材下载方式 |
 | `git_clone_pinned <url> <ref> <dest>` | 浅克隆并 checkout 指定 commit，校验存在 |

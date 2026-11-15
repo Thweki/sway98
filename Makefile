@@ -5,9 +5,13 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-shellcheck check-dryrun check-roundtrip check-ini check-real install-hooks
 
-check: check-shellcheck check-dryrun check-roundtrip
+check: check-shellcheck check-dryrun check-roundtrip check-ini
+
+# Preserve INI section identity and line endings through edits and rollback.
+check-ini:
+	@bash tests/ini-line-endings.sh
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
