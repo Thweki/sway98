@@ -5,12 +5,16 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-include-trimming check-real install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-include-trimming check-real check-presets install-hooks
 
-check: check-syntax check-shellcheck check-dryrun check-roundtrip check-include-trimming
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-include-trimming check-presets
+
 
 check-include-trimming:
 	@bash tests/include-trimming.sh
+
+check-presets:
+	@bash tests/module-presets.sh
 
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
