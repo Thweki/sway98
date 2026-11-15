@@ -72,9 +72,10 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `info/warn/err/ok/dry/step` | 日志，同时落 `$STATE/log/install-<ts>.log` |
 | `die <msg>` | 报错退出 |
 | `confirm <prompt>` | 交互确认（`--no-prompt` 下自动 yes） |
+| `confirm_takeover <prompt>` | 独立接管确认，不接受 `--yes`；`--takeover` 可显式同意 |
 | `is_dry_run` | 全局 `--dry-run`：所有写操作只打印不执行 |
 | `backup_path <path>` | 复制到 `$STATE/backups/<ts>/...` 并返回路径 |
-| `install_file <src> <dest>` | 备份→写入→记 manifest（create/modify） |
+| `install_file <src> <dest> [overwrite\|merge]` | 默认覆盖需独立接管同意；保留无关内容的编辑器显式用 merge；备份→写入→记 manifest |
 | `install_dir <src-dir> <dest-dir>` | 逐文件 install_file + 记录目录创建 |
 | `record_cmd <module> <revert-cmd>` | 记录一条回滚命令（按逆序执行） |
 | `include_block <file> <block-id> <line>...` | 用 `# >>> id >>>` / `# <<< id <<<` 标记块幂等加一行 include |
@@ -84,7 +85,7 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `git_clone_pinned <url> <ref> <dest>` | 浅克隆并 checkout 指定 commit，校验存在 |
 
 `$STATE` = `${XDG_STATE_HOME:-~/.local/state}/sway98`。
-manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/sha_old/backup）、`manifest/commands.tsv`（module/revert_cmd）、`manifest/modules.tsv`（module/version/timestamp）。
+manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/sha_old/backup/operation）、`manifest/commands.tsv`（module/revert_cmd）、`manifest/modules.tsv`（module/version/timestamp）。operation 为 merge 或 overwrite；merge 修改用户文件仅记回滚，不授予整文件覆盖权。兼容旧版六列记录及批量 create 记录。
 
 ---
 
@@ -92,7 +93,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 
 1. **默认 dry-run 安全**：所有写路径先过 `is_dry_run`，`--dry-run` 必须零副作用（不建目录、不写 manifest）。
 2. **只碰表内路径**：`$HOME` 下的配置文件，或 `SCOPE=system` 模块明确声明的 `/usr/...`、`/etc/...`。禁止 `rm -rf` 无 `--` 保护的路径，禁止通配删除。
-3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm` 后才覆盖，否则跳过并在摘要里说明。
+3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm_takeover` 独立确认后才覆盖；`--yes` 不代替接管同意，非交互需显式 `--takeover`。拒绝或无法确认则保留原文件，不记文件 manifest，模块摘要标为 incomplete（即使其他文件已安装）。include/INI/键值编辑保留无关内容，显式使用 merge，不视为整文件接管；模板渲染仍属覆盖。dry-run 只报告需要接管决定，不询问、不写入。
 4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。任何"装了但卸不掉"的改动视为 bug。
 5. **系统级模块**（保留给后续里程碑的 `sddm`/`plymouth`）：必须 `--system` 显式开启，README/PLAN 里标注变砖风险。
 
@@ -134,6 +135,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./uninstall.sh                          # 按 manifest 全量回滚
 
 make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+bash tests/takeover-consent.sh           # 临时 HOME 中的接管决定与摘要测试，无网络/桌面
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原

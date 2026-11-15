@@ -40,7 +40,8 @@ Selection
 
 Behaviour
   -n, --dry-run          print every change without touching anything
-  -y, --yes              assume yes for all prompts
+  -y, --yes              assume yes for routine prompts (excludes takeover)
+      --takeover         explicitly allow overwriting unowned destinations
       --verbose          log every helper call
       --only MODULE      restrict to a single module (implies --modules)
 
@@ -61,6 +62,7 @@ parse_args() {
             -l|--list)      MODE="list"; shift ;;
             -n|--dry-run)   export SWAY98_DRY_RUN=1; shift ;;
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
+            --takeover)     export SWAY98_TAKEOVER=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
             --verbose)      export SWAY98_VERBOSE=1; shift ;;
             -h|--help)      usage; exit 0 ;;
@@ -145,20 +147,29 @@ expand_requirements() {
 }
 
 apply_selection() {
-    local selection="$1" id file applied=() failed=()
+    local selection="$1" id file status applied=() incomplete=() failed=()
     for id in $selection; do
         file="$(module_file "$id")" || die "unknown module: $id"
         export SWAY98_MODULE="$id"
         step "module: $id"
         if ( # shellcheck disable=SC1090
+            SWAY98_SKIPPED_DESTINATIONS=()
             . "$file"
-            sway98_apply
+            sway98_apply || exit 1
+            # Reserved result for successful work with declined destinations.
+            ((${#SWAY98_SKIPPED_DESTINATIONS[@]} == 0)) || exit 3
         ); then
             applied+=("$id")
             record_module "$id" installed
         else
-            warn "module '$id' did not complete; its changes stay reverted-able via ./uninstall.sh"
-            failed+=("$id")
+            status=$?
+            if [[ "$status" == "3" ]]; then
+                incomplete+=("$id")
+                record_module "$id" incomplete
+            else
+                warn "module '$id' did not complete; its changes stay reverted-able via ./uninstall.sh"
+                failed+=("$id")
+            fi
         fi
     done
 
@@ -168,6 +179,9 @@ apply_selection() {
     fi
     if ((${#failed[@]})); then
         err "failed: ${failed[*]}"
+    fi
+    if ((${#incomplete[@]})); then
+        warn "incomplete (unowned destinations skipped): ${incomplete[*]}"
     fi
     printf '\n' >&2
     info "check the result:  swaymsg reload   (then restart GTK apps / Firefox)"
@@ -226,4 +240,6 @@ main() {
     apply_selection "$selection"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

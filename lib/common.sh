@@ -17,6 +17,7 @@ SWAY98_THEME_SRC="${SWAY98_THEME_SRC:-$SWAY98_STATE/upstream/Chicago95}"
 # Runtime switches (set by install.sh / uninstall.sh from the command line)
 SWAY98_DRY_RUN="${SWAY98_DRY_RUN:-0}"
 SWAY98_ASSUME_YES="${SWAY98_ASSUME_YES:-0}"
+SWAY98_TAKEOVER="${SWAY98_TAKEOVER:-0}"
 SWAY98_VERBOSE="${SWAY98_VERBOSE:-0}"
 SWAY98_SYSTEM="${SWAY98_SYSTEM:-0}"
 SWAY98_LOG="${SWAY98_LOG:-}"
@@ -93,4 +94,12 @@ confirm() {
     fi
     read -r -p "$prompt [y/N] " reply || true
     [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+# Overwriting an unowned destination needs its own decision. A general --yes
+# only approves routine prompts; --takeover explicitly approves replacements.
+confirm_takeover() {
+    [[ "$SWAY98_TAKEOVER" == "1" ]] && return 0
+    local SWAY98_ASSUME_YES=0
+    confirm "$1"
 }

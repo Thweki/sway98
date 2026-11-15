@@ -59,6 +59,11 @@ Every module is optional. Nothing is preselected: you choose, module by module.
   sway window colours go into `~/.config/sway/conf.d/sway98.conf`, which is added
   to your config as a marker-delimited `include` block (`# >>> sway98 >>>`), so
   re-running the installer cannot stack duplicate lines.
+  INI and include edits preserve unrelated content. Replacing an existing file
+  outside the manifest requires a separate takeover confirmation; `--yes` does
+  not approve it. For unattended replacement, explicitly add `--takeover`.
+  Declined or unavailable consent leaves the file untouched and reports the
+  module as `incomplete` with skipped destinations in the log.
 * **Dry run.** `./install.sh --dry-run --all` prints every intended change and
   writes nothing at all — not even the manifest.
 * **Idempotent.** Running the installer again only writes what actually differs.
@@ -137,14 +142,15 @@ Everything is Bash; there is no build step, and the installer's only runtime
 dependencies are `curl`, `git` and coreutils.
 
 ```
-make check              # shellcheck, dry run, install/uninstall roundtrip
+make check              # shellcheck, takeover tests, dry run, roundtrip
 make check-real         # the same against a real Chicago95 checkout
 tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```
 
 `make check` needs `shellcheck` (`pacman -S shellcheck` / `apt install shellcheck`).
-Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
-the machine running them is modified — including the screenshot generator, which
+The takeover tests use a temporary `$HOME`; the sandbox tests use
+`tests/sandbox/`, so nothing on the machine running them is modified — including
+the screenshot generator, which
 renders a private headless sway session instead of photographing your own desktop.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and

@@ -65,6 +65,6 @@ _fcitx5_set_key() {
         printf '%s=%s\n' "$key" "$value" >"$tmp"
     fi
 
-    install_file "$tmp" "$file"
+    install_file "$tmp" "$file" merge
     rm -f -- "$tmp"
 }
