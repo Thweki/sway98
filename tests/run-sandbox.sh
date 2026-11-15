@@ -16,6 +16,11 @@
 
 set -euo pipefail
 
+# Inherited overrides must never redirect tests into the caller's real state.
+for variable in "${!SWAY98_@}" "${!XDG_@}"; do
+    unset "$variable"
+done
+
 SWAY98_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SANDBOX="$SWAY98_ROOT/tests/sandbox"
 MODE="${1:-roundtrip}"
@@ -77,6 +82,7 @@ EOF
 
 sandbox_env() {
     export HOME="$SANDBOX/home"
+    export XDG_CONFIG_HOME="$SANDBOX/home/.config"
     export XDG_STATE_HOME="$SANDBOX/state"
     export XDG_CACHE_HOME="$SANDBOX/cache"
     export XDG_DATA_HOME="$SANDBOX/home/.local/share"
