@@ -5,9 +5,9 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-syntax check-shellcheck check-sandbox check-dryrun check-roundtrip check-real install-hooks
 
-check: check-syntax check-shellcheck check-dryrun check-roundtrip
+check: check-syntax check-shellcheck check-sandbox
 
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
@@ -26,6 +26,10 @@ check-shellcheck:
 # Every module must survive --dry-run without touching the filesystem.
 check-dryrun:
 	@tests/run-sandbox.sh dry-run
+
+# Reuse the dry-run fixture for roundtrip (regression: tests/sandbox-reuse.sh).
+check-sandbox:
+	@tests/run-sandbox.sh all
 
 # Install everything, then uninstall, then compare the sandbox $HOME against a
 # pristine copy of it. Any difference is a bug in the transaction layer.
