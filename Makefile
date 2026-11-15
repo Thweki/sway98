@@ -5,12 +5,16 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-shellcheck check-dryrun check-roundtrip check-real check-presets install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-real check-presets install-hooks
 
-check: check-shellcheck check-dryrun check-roundtrip check-presets
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-presets
 
 check-presets:
 	@bash tests/module-presets.sh
+
+check-syntax:
+	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
+	@echo "bash -n: clean"
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
