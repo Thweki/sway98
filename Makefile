@@ -5,9 +5,12 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-status check-real install-hooks
 
-check: check-syntax check-shellcheck check-dryrun check-roundtrip
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-status
+
+check-status:
+	@bash tests/install-status.sh
 
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n

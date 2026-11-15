@@ -104,6 +104,7 @@ module picker, `grim`/`slurp` for screenshots.
 
 ```
 ./install.sh --list                  list modules and exit
+./install.sh --status                summarize recorded installation state
 ./install.sh --dry-run --all         full rehearsal, zero side effects
 ./install.sh --modules theme,gtk,sway
 ./install.sh --recommended           the set that gives you the look fastest
@@ -111,6 +112,18 @@ module picker, `grim`/`slurp` for screenshots.
 ./uninstall.sh --dry-run             see the rollback first
 ./uninstall.sh --only firefox        roll back one module
 ```
+
+`--status` reads the active manifest without creating state, writing logs,
+running package checks, or accessing the network. It shows each recorded
+module's latest result, installer version and run time, plus unique file/link
+and directory counts and the number of rollback commands. Modules with changes
+but no completion record appear as `records-only`; empty or missing manifests
+report no active records. It respects `SWAY98_STATE` and `XDG_STATE_HOME`.
+
+This is a record summary, not a check of current file contents or installation
+health: a recorded `installed` result can include skipped modules, and partial
+uninstalls currently retain records. Archived history is excluded. `--status`
+cannot be combined with module selection or `--list`.
 
 ## Honest limitations
 

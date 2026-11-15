@@ -21,9 +21,12 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/fetch.sh"
 # shellcheck source=lib/menu.sh
 . "$SWAY98_ROOT/lib/menu.sh"
+# shellcheck source=lib/status.sh
+. "$SWAY98_ROOT/lib/status.sh"
 
 SELECTION=""
 MODE=""
+STATUS=0
 
 usage() {
     cat <<EOF
@@ -36,6 +39,7 @@ Selection
   -a, --all              select every available module
   -r, --recommended      select the recommended set
   -l, --list             list modules and exit
+      --status           summarize active manifest records without writing
       --system           also offer modules that change system paths (needs sudo)
 
 Behaviour
@@ -59,6 +63,7 @@ parse_args() {
             -a|--all)       MODE="all"; shift ;;
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; shift ;;
+            --status)       STATUS=1; SWAY98_LOG=""; shift ;;
             -n|--dry-run)   export SWAY98_DRY_RUN=1; shift ;;
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
@@ -179,6 +184,12 @@ apply_selection() {
 
 main() {
     parse_args "$@"
+
+    if [[ "$STATUS" == 1 ]]; then
+        [[ -z "$MODE" && -z "$SELECTION" ]] || die "--status cannot be combined with module selection or --list"
+        sway98_status
+        return
+    fi
 
     case "${MODE:-}" in
         list) list_modules; exit 0 ;;
