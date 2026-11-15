@@ -133,10 +133,11 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./install.sh --modules theme,gtk,sway   # 非交互
 ./uninstall.sh                          # 按 manifest 全量回滚
 
-make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+make check                              # shellcheck + 干跑 + 沙箱往返 + 环境隔离（发布前必跑）
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原
+tests/check-sandbox-isolation.sh        # 注入继承环境，检查成功/失败时沙箱外哨兵均未被触碰
 tests/verify-real-tree.sh               # 真素材版：入口与 make check-real 相同
 tests/screenshots.sh                    # 在一次性无头 sway 里重生成 README 截图
 ```
@@ -145,8 +146,10 @@ tests/screenshots.sh                    # 在一次性无头 sway 里重生成 R
 订阅链接、Wi-Fi 名称。脚本会（a）用私有 runtime dir / 私有 D-Bus / 私有 XDG_CONFIG_HOME 起 headless sway，
 （b）只装本仓库的模块资产，（c）把 Waybar 的 SSID 单元格替换成信号强度。改脚本前先读 `docs/screenshots/README.md`。
 
-沙箱在 `tests/sandbox/`，用 `$HOME`/`XDG_STATE_HOME` 指向临时目录实现，`SWAY98_NO_GSETTINGS=1`
-阻止测试碰到真实 dconf。**绝不**在自己日常账户下直接跑 `./install.sh --yes --all` 做测试；
+沙箱固定在 `tests/sandbox/` 和 `tests/sandbox-real/`，两个入口共用 `tests/sandbox-env.sh`，
+显式设置 `$HOME` 及 XDG 配置/数据/状态/缓存路径，清空继承的 `SWAY98_*` 覆盖与 Sway 会话 socket。
+唯一保留的外部输入是真素材测试的 `SWAY98_THEME_SRC`；`SWAY98_REAL_SANDBOX` 不再接受。
+`SWAY98_NO_GSETTINGS=1` 阻止测试碰到真实 dconf。**绝不**在自己日常账户下直接跑 `./install.sh --yes --all` 做测试；
 `make check-real` 需要 `SWAY98_THEME_SRC` 指向一份 Chicago95 检出（没有会自动 SKIP 并返回 0）。
 
 ---

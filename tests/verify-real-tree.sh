@@ -2,26 +2,24 @@
 #
 # sway98 — end-to-end check against a *real* Chicago95 checkout.
 #
-# tests/run-sandbox.sh uses a hand-built stub tree, which is too tidy: it has no
-# symlinks and almost no depth. Run this before a release (or after touching the
-# transaction layer) to verify a full install and rollback against the real
-# upstream tree, in a throwaway $HOME.
+# tests/run-sandbox.sh uses a small hand-built stub tree. Run this before a
+# release (or after touching the transaction layer) to verify a full install
+# and rollback against the real upstream tree, in a throwaway $HOME.
 #
 #   SWAY98_THEME_SRC=/path/to/Chicago95 bash tests/verify-real-tree.sh
 #
 # Exit status is 0 only when the sandbox $HOME is identical, entry for entry,
 # before and after the install/uninstall cycle.
 
-set -uo pipefail
+set -euo pipefail
 
 SWAY98_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-SANDBOX="${SWAY98_REAL_SANDBOX:-$SWAY98_ROOT/tests/sandbox-real}"
+SANDBOX="$SWAY98_ROOT/tests/sandbox-real"
 
-export HOME="$SANDBOX/home"
-export XDG_STATE_HOME="$SANDBOX/state"
-export XDG_CACHE_HOME="$SANDBOX/cache"
-export SWAY98_NO_GSETTINGS=1
-export SWAY98_THEME_SRC="${SWAY98_THEME_SRC:-$SWAY98_ROOT/../Chicago95}"
+# Preserve only the documented source input; never inherit a deletion target.
+# shellcheck source=tests/sandbox-env.sh
+. "$SWAY98_ROOT/tests/sandbox-env.sh"
+sway98_sandbox_env "$SANDBOX" "${SWAY98_THEME_SRC:-$SWAY98_ROOT/../Chicago95}"
 
 if [[ ! -d "$SWAY98_THEME_SRC/Theme/Chicago95" ]]; then
     echo "SKIP: no Chicago95 checkout at $SWAY98_THEME_SRC" >&2
@@ -30,8 +28,8 @@ if [[ ! -d "$SWAY98_THEME_SRC/Theme/Chicago95" ]]; then
     exit 0
 fi
 
-rm -rf "$SANDBOX"
-mkdir -p "$HOME/.config/sway"
+rm -rf -- "$SANDBOX"
+mkdir -p -- "$HOME/.config/sway"
 # shellcheck disable=SC2016  # sway variables, not shell ones
 echo 'set $mod Mod4' >"$HOME/.config/sway/config"
 
@@ -64,5 +62,5 @@ if [[ "$install_rc" == "0" && "$uninstall_rc" == "0" ]] \
 fi
 
 echo "FAIL real tree: rollback left something behind" >&2
-diff "$SANDBOX/before.txt" "$SANDBOX/after.txt" | head -20 >&2
+diff "$SANDBOX/before.txt" "$SANDBOX/after.txt" | head -20 >&2 || true
 exit 1

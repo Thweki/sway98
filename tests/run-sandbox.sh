@@ -20,6 +20,10 @@ SWAY98_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SANDBOX="$SWAY98_ROOT/tests/sandbox"
 MODE="${1:-roundtrip}"
 
+# shellcheck source=tests/sandbox-env.sh
+. "$SWAY98_ROOT/tests/sandbox-env.sh"
+sway98_sandbox_env "$SANDBOX" "$SANDBOX/Chicago95"
+
 # Modules exercised by the sandbox. Kept in one place so dry-run and roundtrip
 # test exactly the same set.
 TEST_MODULES="theme,sway,waybar,gtk,qt,kitty,wofi,mako,swaylock,fcitx5,fonts,firefox"
@@ -76,17 +80,6 @@ EOF
     cp -a -- "$SANDBOX/home" "$SANDBOX/pristine"
 }
 
-sandbox_env() {
-    export HOME="$SANDBOX/home"
-    export XDG_STATE_HOME="$SANDBOX/state"
-    export XDG_CACHE_HOME="$SANDBOX/cache"
-    export XDG_DATA_HOME="$SANDBOX/home/.local/share"
-    export SWAY98_THEME_SRC="$SANDBOX/Chicago95"
-    # gsettings would talk to the developer's real dconf daemon.
-    export SWAY98_NO_GSETTINGS=1
-    unset SWAYSOCK WAYLAND_DISPLAY || true
-}
-
 diff_home() {
     diff -r --exclude='.cache' "$SANDBOX/pristine" "$SANDBOX/home"
 }
@@ -94,7 +87,6 @@ diff_home() {
 case "$MODE" in
     dry-run)
         seed_home
-        sandbox_env
         out="$SANDBOX/dry.log"
         if ! "$SWAY98_ROOT/install.sh" --dry-run --yes --all >"$out" 2>&1; then
             cat "$out" >&2
@@ -111,7 +103,6 @@ case "$MODE" in
 
     roundtrip)
         seed_home
-        sandbox_env
         out="$SANDBOX/install.log"
         if ! "$SWAY98_ROOT/install.sh" --yes --modules "$TEST_MODULES" >"$out" 2>&1; then
             tail -30 "$out" >&2
