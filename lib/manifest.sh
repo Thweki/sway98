@@ -88,27 +88,49 @@ _manifest_earliest_record() {
     printf '%s\n' "$out"
 }
 
+# Split a TSV row into caller variables without IFS whitespace collapsing empty
+# columns. The final variable receives the remainder (commands may contain tabs).
+_manifest_split_tsv() {
+    local _manifest_tsv_record="$1" _manifest_tsv_field
+    shift
+    while (($#)); do
+        _manifest_tsv_field="$1"
+        if (($# == 1)); then
+            printf -v "$_manifest_tsv_field" '%s' "$_manifest_tsv_record"
+        else
+            printf -v "$_manifest_tsv_field" '%s' "${_manifest_tsv_record%%$'\t'*}"
+            if [[ "$_manifest_tsv_record" == *$'\t'* ]]; then
+                _manifest_tsv_record="${_manifest_tsv_record#*$'\t'}"
+            else
+                _manifest_tsv_record=""
+            fi
+        fi
+        shift
+    done
+}
+
 # install_file <src> <dest>
 install_file() {
     local src="$1" dest="$2"
     local action sha_new sha_old="" backup="" prev mode
 
     [[ -f "$src" ]] || die "install_file: source does not exist: $src"
-    [[ -d "$dest" ]] && die "install_file: destination is a directory: $dest"
+    [[ -d "$dest" && ! -L "$dest" ]] && die "install_file: destination is a directory: $dest"
 
-    if [[ -e "$dest" ]] && cmp -s -- "$src" "$dest"; then
+    if [[ -f "$dest" && ! -L "$dest" ]] && cmp -s -- "$src" "$dest"; then
         info "unchanged: $dest"
         return 0
     fi
 
-    if [[ -e "$dest" ]]; then
+    if [[ -e "$dest" || -L "$dest" ]]; then
         action="modify"
         if prev="$(_manifest_earliest_record "$dest")"; then
             action="$(cut -f1 <<<"$prev")"
             sha_old="$(cut -f2 <<<"$prev")"
             backup="$(cut -f3 <<<"$prev")"
         else
-            sha_old="$(sha256_of "$dest")"
+            # Back up the link itself, including dangling links, never its target.
+            [[ -L "$dest" ]] || sha_old="$(sha256_of "$dest")"
             if is_dry_run; then
                 dry "would back up $dest"
             else
@@ -130,7 +152,7 @@ install_file() {
     _manifest_record_created_dirs "$(dirname -- "$dest")"
 
     mode="$(stat -c '%a' -- "$src")"
-    install -m "$mode" -- "$src" "$dest"
+    install -T -m "$mode" -- "$src" "$dest"
     sha_new="$(sha256_of "$dest")"
     manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "$sha_new" "$sha_old" "$backup"
     if [[ "$action" == "modify" ]]; then
@@ -145,26 +167,31 @@ install_file() {
 # Chicago95's icon theme is largely built from symlinks (one icon reused under
 # twenty names). install_file() would dereference them and duplicate the target
 # thousands of times, so links get their own path: recreate the link, record it
-# without a hash. Rollback deletes it like any file it created.
+# without a new hash. Rollback removes new links or restores the original entry.
 install_symlink() {
     local src="$1" dest="$2" target prev
     target="$(readlink -- "$src")" || die "install_symlink: not a symlink: $src"
+    [[ -d "$dest" && ! -L "$dest" ]] && die "install_symlink: destination is a directory: $dest"
 
     if [[ -L "$dest" && "$(readlink -- "$dest")" == "$target" ]]; then
         info "unchanged: $dest"
         return 0
     fi
 
-    local action="create" backup=""
+    local action="create" sha_old="" backup=""
     if [[ -e "$dest" || -L "$dest" ]]; then
         action="modify"
         if prev="$(_manifest_earliest_record "$dest")" && [[ -n "$prev" ]]; then
             action="$(cut -f1 <<<"$prev")"
+            sha_old="$(cut -f2 <<<"$prev")"
             backup="$(cut -f3 <<<"$prev")"
-        elif is_dry_run; then
-            dry "would back up $dest"
         else
-            backup="$(backup_of "$dest")"
+            [[ -L "$dest" ]] || sha_old="$(sha256_of "$dest")"
+            if is_dry_run; then
+                dry "would back up $dest"
+            else
+                backup="$(backup_of "$dest")"
+            fi
         fi
     fi
 
@@ -175,7 +202,7 @@ install_symlink() {
 
     _manifest_record_created_dirs "$(dirname -- "$dest")"
     ln -sfn -- "$target" "$dest"
-    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "" "" "$backup"
+    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "" "$sha_old" "$backup"
     info "$action: $dest -> $target"
 }
 
@@ -295,11 +322,12 @@ _manifest_record_created_dirs() {
 
 # restore_all [module-filter] — reverse order: commands, files, directories.
 restore_all() {
-    local only="${1:-}" mod cmd action path sha_new sha_old backup count=0
+    local only="${1:-}" row mod cmd action path sha_new sha_old backup count=0
 
     if [[ -s "$(manifest_commands)" ]]; then
         step "Reverting recorded commands"
-        while IFS=$'\t' read -r mod cmd; do
+        while IFS= read -r row; do
+            _manifest_split_tsv "$row" mod cmd
             [[ -n "${cmd:-}" ]] || continue
             [[ -n "$only" && "$mod" != "$only" ]] && continue
             if is_dry_run; then
@@ -317,7 +345,8 @@ restore_all() {
         # order of first appearances is reversed. Created files are deleted in
         # one batched rm; modified files are restored from their backup.
         local -a created_paths=()
-        while IFS=$'\t' read -r mod action path sha_new sha_old backup; do
+        while IFS= read -r row; do
+            _manifest_split_tsv "$row" mod action path sha_new sha_old backup
             [[ -n "${path:-}" ]] || continue
             [[ -n "$only" && "$mod" != "$only" ]] && continue
             case "$action" in
@@ -329,14 +358,14 @@ restore_all() {
                     fi
                     ;;
                 modify)
-                    if [[ -z "$backup" || ! -e "$backup" ]]; then
+                    if [[ -z "$backup" || ( ! -e "$backup" && ! -L "$backup" ) ]]; then
                         warn "no backup for $path, leaving as is"
                         continue
                     fi
                     if is_dry_run; then
                         dry "restore $path from ${backup#"$SWAY98_STATE"/}"
                     else
-                        cp -a -- "$backup" "$path" && info "restored: $path"
+                        cp -a --remove-destination -T -- "$backup" "$path" && info "restored: $path"
                     fi
                     ;;
                 *)
@@ -355,7 +384,8 @@ restore_all() {
 
     if [[ -s "$(manifest_dirs)" ]]; then
         step "Removing directories created by $SWAY98_NAME"
-        while IFS=$'\t' read -r mod path; do
+        while IFS= read -r row; do
+            _manifest_split_tsv "$row" mod path
             [[ -n "${path:-}" ]] || continue
             [[ -n "$only" && "$mod" != "$only" ]] && continue
             if is_dry_run; then
