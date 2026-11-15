@@ -9,12 +9,16 @@ SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 # recipes serial even with -j or inherited MAKEFLAGS, including explicit goals.
 .NOTPARALLEL:
 
-.PHONY: check check-make check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-make check-syntax check-shellcheck check-dryrun check-roundtrip check-real install-hooks
 
-check: check-make check-shellcheck check-dryrun check-roundtrip
+check: check-make check-syntax check-shellcheck check-dryrun check-roundtrip
 
 check-make:
 	@bash tests/check-make.sh
+
+check-syntax:
+	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
+	@echo "bash -n: clean"
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
