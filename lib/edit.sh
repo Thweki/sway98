@@ -7,10 +7,10 @@
 # hands it to install_file(), which is what records backups and the manifest.
 # Never write to a user file directly from a module.
 
-# _edit_apply <src> <dest>: install rendered content, preserving mode.
+# _edit_apply <src> <dest> [overwrite|merge]: install rendered content.
 _edit_apply() {
     local src="$1" dest="$2"
-    install_file "$src" "$dest"
+    install_file "$src" "$dest" "${3:-overwrite}"
 }
 
 # template_render <src> <dest> [KEY=VALUE...]
@@ -99,7 +99,7 @@ include_block() {
     done
     printf '%s\n' "$end" >>"$tmp"
 
-    _edit_apply "$tmp" "$file"
+    _edit_apply "$tmp" "$file" merge
     rm -f -- "$tmp"
 }
 
@@ -145,7 +145,7 @@ ini_set() {
         printf '[%s]\n%s=%s\n' "$section" "$key" "$value" >"$tmp"
     fi
 
-    _edit_apply "$tmp" "$file"
+    _edit_apply "$tmp" "$file" merge
     rm -f -- "$tmp"
 }
 
@@ -163,6 +163,6 @@ ini_remove() {
             print
         }
     ' "$file" >"$tmp"
-    _edit_apply "$tmp" "$file"
+    _edit_apply "$tmp" "$file" merge
     rm -f -- "$tmp"
 }

@@ -8,7 +8,7 @@
 # manifest, and the manifest is the only source of truth for uninstall.sh.
 #
 # Manifest layout (TSV, append only):
-#   manifest/files.tsv     module  action  path  sha_new  sha_old  backup
+#   manifest/files.tsv     module  action  path  sha_new  sha_old  backup  operation
 #   manifest/commands.tsv  module  revert_command
 #   manifest/dirs.tsv      module  path
 #   manifest/modules.tsv   module  status  version  timestamp
@@ -49,9 +49,10 @@ backup_of() {
 
 manifest_record_file() {
     local module="$1" action="$2" path="$3" sha_new="$4" sha_old="${5:-}" backup="${6:-}"
+    local operation="${7:-overwrite}"
     is_dry_run && return 0
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$module" "$action" "$path" "$sha_new" "$sha_old" "$backup" >>"$(manifest_files)"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$module" "$action" "$path" "$sha_new" "$sha_old" "$backup" "$operation" >>"$(manifest_files)"
 }
 
 manifest_record_dir() {
@@ -88,27 +89,58 @@ _manifest_earliest_record() {
     printf '%s\n' "$out"
 }
 
-# install_file <src> <dest>
+# Unowned files may be merged by the editing primitives, but replacement needs
+# explicit consent. Keep skipped destinations in the module's subshell so the
+# installer can distinguish an incomplete module from an installed one.
+_sway98_allow_destination() {
+    local dest="$1" operation="${2:-overwrite}"
+    [[ -e "$dest" || -L "$dest" ]] || return 0
+    # A merge into a user's file does not grant ownership of the whole file.
+    # Older six-column records retain their original ownership semantics.
+    if [[ -s "$(manifest_files)" ]] && awk -F '\t' -v path="$dest" '
+        $3 == path && ($2 == "create" || $7 != "merge") { owned=1; exit }
+        END { exit !owned }
+    ' "$(manifest_files)"; then
+        return 0
+    fi
+    if [[ "$operation" == "merge" && -f "$dest" && ! -L "$dest" ]]; then
+        return 0
+    fi
+    if is_dry_run; then
+        dry "would require explicit takeover consent to overwrite unowned destination: $dest"
+        return 0
+    fi
+    confirm_takeover "overwrite unowned destination '$dest'? (the original will be backed up)" && return 0
+    SWAY98_SKIPPED_DESTINATIONS+=("$dest")
+    warn "skipped unowned destination (takeover not approved): $dest"
+    return 1
+}
+
+# install_file <src> <dest> [overwrite|merge]
+# Only callers that preserve unrelated content may request merge semantics.
 install_file() {
-    local src="$1" dest="$2"
+    local src="$1" dest="$2" operation="${3:-overwrite}"
     local action sha_new sha_old="" backup="" prev mode
 
     [[ -f "$src" ]] || die "install_file: source does not exist: $src"
     [[ -d "$dest" ]] && die "install_file: destination is a directory: $dest"
+    [[ "$operation" == "overwrite" || "$operation" == "merge" ]] || die "install_file: unknown operation: $operation"
 
     if [[ -e "$dest" ]] && cmp -s -- "$src" "$dest"; then
         info "unchanged: $dest"
         return 0
     fi
 
-    if [[ -e "$dest" ]]; then
+    _sway98_allow_destination "$dest" "$operation" || return 0
+
+    if [[ -e "$dest" || -L "$dest" ]]; then
         action="modify"
         if prev="$(_manifest_earliest_record "$dest")"; then
             action="$(cut -f1 <<<"$prev")"
             sha_old="$(cut -f2 <<<"$prev")"
             backup="$(cut -f3 <<<"$prev")"
         else
-            sha_old="$(sha256_of "$dest")"
+            [[ -f "$dest" ]] && sha_old="$(sha256_of "$dest")"
             if is_dry_run; then
                 dry "would back up $dest"
             else
@@ -132,7 +164,7 @@ install_file() {
     mode="$(stat -c '%a' -- "$src")"
     install -m "$mode" -- "$src" "$dest"
     sha_new="$(sha256_of "$dest")"
-    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "$sha_new" "$sha_old" "$backup"
+    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "$sha_new" "$sha_old" "$backup" "$operation"
     if [[ "$action" == "modify" ]]; then
         info "modified: $dest (backup: ${backup#"$SWAY98_STATE"/})"
     else
@@ -154,6 +186,8 @@ install_symlink() {
         info "unchanged: $dest"
         return 0
     fi
+
+    _sway98_allow_destination "$dest" || return 0
 
     local action="create" backup=""
     if [[ -e "$dest" || -L "$dest" ]]; then
@@ -344,7 +378,7 @@ restore_all() {
                     ;;
             esac
             count=$((count + 1))
-        done < <(awk -F'\t' '!seen[$3]++ {print}' "$(manifest_files)" | tac)
+        done < <(awk -F'\t' '!seen[$3]++ {print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6}' "$(manifest_files)" | tac)
 
         if ((${#created_paths[@]})); then
             printf '%s\0' "${created_paths[@]}" | xargs -0 -r rm -f --

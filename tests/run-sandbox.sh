@@ -122,7 +122,7 @@ case "$MODE" in
         seed_home
         sandbox_env
         out="$SANDBOX/install.log"
-        if ! "$SWAY98_ROOT/install.sh" --yes --modules "$TEST_MODULES" >"$out" 2>&1; then
+        if ! "$SWAY98_ROOT/install.sh" --yes --takeover --modules "$TEST_MODULES" >"$out" 2>&1; then
             tail -30 "$out" >&2
             fail "install exited non-zero"
         fi
@@ -154,7 +154,7 @@ case "$MODE" in
 
         # Re-running has to be a no-op for the files it already wrote.
         before="$(sha256sum "$SANDBOX/home/.config/waybar/style.css" "$SANDBOX/home/.config/sway/conf.d/sway98.conf" | sha256sum)"
-        "$SWAY98_ROOT/install.sh" --yes --modules "$TEST_MODULES" >>"$out" 2>&1 || fail "second install run failed"
+        "$SWAY98_ROOT/install.sh" --yes --takeover --modules "$TEST_MODULES" >>"$out" 2>&1 || fail "second install run failed"
         after="$(sha256sum "$SANDBOX/home/.config/waybar/style.css" "$SANDBOX/home/.config/sway/conf.d/sway98.conf" | sha256sum)"
         [[ "$before" == "$after" ]] || fail "second run changed files that should be identical"
         pass "re-running the installer is idempotent"
