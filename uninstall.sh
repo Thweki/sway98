@@ -46,7 +46,7 @@ parse_args() {
 }
 
 list_manifest() {
-    if [[ ! -s "$(manifest_files)" ]]; then
+    if ! manifest_has_records; then
         info "no manifest found at $SWAY98_STATE/manifest — nothing was installed"
         return 0
     fi
@@ -56,23 +56,11 @@ list_manifest() {
     printf '%sRevert commands: %s%s\n' "$C_BOLD" "$(wc -l <"$(manifest_commands)")" "$C_RESET"
 }
 
-archive_manifest() {
-    local hist="$SWAY98_STATE/manifest/history/$SWAY98_TS"
-    is_dry_run && { dry "would archive manifest to $hist"; return 0; }
-    mkdir -p -- "$hist"
-    local f
-    for f in "$(manifest_files)" "$(manifest_commands)" "$(manifest_dirs)" "$(manifest_modules)"; do
-        [[ -s "$f" ]] && mv -- "$f" "$hist/$(basename -- "$f")"
-        : >"$f"
-    done
-    info "manifest archived to $hist"
-}
-
 main() {
     parse_args "$@"
 
-    if [[ ! -s "$(manifest_files)" && ! -s "$(manifest_commands)" ]]; then
-        info "nothing to revert (no manifest at $SWAY98_STATE)"
+    if ! manifest_has_records "$ONLY"; then
+        info "nothing to revert${ONLY:+ for module $ONLY} (no active records at $SWAY98_STATE)"
         exit 0
     fi
 
@@ -88,10 +76,6 @@ main() {
     fi
 
     restore_all "$ONLY"
-
-    if [[ -z "$ONLY" ]]; then
-        archive_manifest
-    fi
 
     step "done"
     info "backups are kept in $SWAY98_STATE/backups/$SWAY98_TS"
