@@ -3,8 +3,10 @@
 # sway98 — sandbox test harness.
 #
 # Runs the installer against a throwaway $HOME so that a developer machine is
-# never modified. Two modes:
+# never modified. Three modes:
 #
+#   run-sandbox.sh all         dry-run then roundtrip, sharing one pristine
+#                              sandbox after the dry-run assertions pass
 #   run-sandbox.sh dry-run     every module under --dry-run must leave the
 #                              sandbox byte for byte identical and must not
 #                              create a manifest
@@ -98,9 +100,15 @@ diff_home() {
 }
 
 case "$MODE" in
-    dry-run)
-        seed_home
-        sandbox_env
+    all|dry-run|roundtrip) ;;
+    *) fail "unknown mode: $MODE (expected all, dry-run or roundtrip)" ;;
+esac
+
+seed_home
+sandbox_env
+
+case "$MODE" in
+    all|dry-run)
         out="$SANDBOX/dry.log"
         if ! "$SWAY98_ROOT/install.sh" --dry-run --yes --all >"$out" 2>&1; then
             cat "$out" >&2
@@ -116,11 +124,9 @@ case "$MODE" in
         fi
         [[ -e "$SANDBOX/state/sway98/manifest/files.tsv" ]] && fail "dry run wrote a manifest"
         pass "dry run left the sandbox untouched"
-        ;;
+        ;;&
 
-    roundtrip)
-        seed_home
-        sandbox_env
+    all|roundtrip)
         out="$SANDBOX/install.log"
         if ! "$SWAY98_ROOT/install.sh" --yes --modules "$TEST_MODULES" >"$out" 2>&1; then
             tail -30 "$out" >&2
@@ -171,9 +177,5 @@ case "$MODE" in
             fail "sandbox \$HOME differs from the pristine copy after uninstall"
         fi
         pass "sandbox \$HOME is byte for byte identical to the pristine copy"
-        ;;
-
-    *)
-        fail "unknown mode: $MODE (expected dry-run or roundtrip)"
         ;;
 esac
