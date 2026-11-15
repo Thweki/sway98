@@ -24,10 +24,10 @@ manifest_init() {
         dry "would prepare state directory $SWAY98_STATE"
         return 0
     fi
-    mkdir -p -- "$SWAY98_STATE/manifest" "$SWAY98_STATE/backups/$SWAY98_TS" "$SWAY98_STATE/log"
+    mkdir -p -- "$SWAY98_STATE/manifest" "$SWAY98_STATE/backups/$SWAY98_TS" "$SWAY98_STATE/log" || return
     local f
     for f in "$(manifest_files)" "$(manifest_commands)" "$(manifest_dirs)" "$(manifest_modules)"; do
-        [[ -e "$f" ]] || : >"$f"
+        [[ -e "$f" ]] || { : >"$f" || return; }
     done
 }
 
@@ -42,8 +42,8 @@ backup_of() {
         rel="system${path}"
     fi
     out="$SWAY98_STATE/backups/$SWAY98_TS/$rel"
-    mkdir -p -- "$(dirname -- "$out")"
-    cp -a -- "$path" "$out"
+    mkdir -p -- "$(dirname -- "$out")" || return
+    cp -a -- "$path" "$out" || return
     printf '%s\n' "$out"
 }
 
@@ -76,14 +76,15 @@ record_module() {
 # not overwrite that with an intermediate state, otherwise repeated runs would
 # restore a half-themed file instead of the user's original.
 #
-# Returns 1 (and prints nothing) when the path has no record yet. Note the
+# Returns 1 (and prints nothing) when the path has no record yet, or 2 on a
+# read error. Callers must not treat a read error as an unmanaged path. Note the
 # explicit emptiness check: awk exits 0 even when nothing matched, so a plain
 # `if out="$(...)"` would silently treat "no record" as "record with empty
 # fields" and lose the action column.
 _manifest_earliest_record() {
     local path="$1" out
     [[ -s "$(manifest_files)" ]] || return 1
-    out="$(awk -F'\t' -v p="$path" '$3 == p { print $2 "\t" $5 "\t" $6; exit }' "$(manifest_files)")"
+    out="$(awk -F'\t' -v p="$path" '$3 == p { print $2 "\t" $5 "\t" $6; exit }' "$(manifest_files)")" || return 2
     [[ -n "$out" ]] || return 1
     printf '%s\n' "$out"
 }
@@ -91,7 +92,7 @@ _manifest_earliest_record() {
 # install_file <src> <dest>
 install_file() {
     local src="$1" dest="$2"
-    local action sha_new sha_old="" backup="" prev mode
+    local action sha_new sha_old="" backup="" prev mode prev_status
 
     [[ -f "$src" ]] || die "install_file: source does not exist: $src"
     [[ -d "$dest" ]] && die "install_file: destination is a directory: $dest"
@@ -104,15 +105,17 @@ install_file() {
     if [[ -e "$dest" ]]; then
         action="modify"
         if prev="$(_manifest_earliest_record "$dest")"; then
-            action="$(cut -f1 <<<"$prev")"
-            sha_old="$(cut -f2 <<<"$prev")"
-            backup="$(cut -f3 <<<"$prev")"
+            action="$(cut -f1 <<<"$prev")" || return
+            sha_old="$(cut -f2 <<<"$prev")" || return
+            backup="$(cut -f3 <<<"$prev")" || return
         else
-            sha_old="$(sha256_of "$dest")"
+            prev_status=$?
+            [[ "$prev_status" == 1 ]] || return "$prev_status"
+            sha_old="$(sha256_of "$dest")" || return
             if is_dry_run; then
                 dry "would back up $dest"
             else
-                backup="$(backup_of "$dest")"
+                backup="$(backup_of "$dest")" || return
             fi
         fi
     else
@@ -127,12 +130,12 @@ install_file() {
     # Create (and record) every missing parent level so that uninstall can remove
     # the directories again once they are empty. Hand-rolled mkdir -p here would
     # leave empty directory trees behind after a rollback.
-    _manifest_record_created_dirs "$(dirname -- "$dest")"
+    _manifest_record_created_dirs "$(dirname -- "$dest")" || return
 
-    mode="$(stat -c '%a' -- "$src")"
-    install -m "$mode" -- "$src" "$dest"
-    sha_new="$(sha256_of "$dest")"
-    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "$sha_new" "$sha_old" "$backup"
+    mode="$(stat -c '%a' -- "$src")" || return
+    install -m "$mode" -- "$src" "$dest" || return
+    sha_new="$(sha256_of "$dest")" || return
+    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "$sha_new" "$sha_old" "$backup" || return
     if [[ "$action" == "modify" ]]; then
         info "modified: $dest (backup: ${backup#"$SWAY98_STATE"/})"
     else
@@ -155,16 +158,20 @@ install_symlink() {
         return 0
     fi
 
-    local action="create" backup=""
+    local action="create" backup="" prev_status
     if [[ -e "$dest" || -L "$dest" ]]; then
         action="modify"
-        if prev="$(_manifest_earliest_record "$dest")" && [[ -n "$prev" ]]; then
-            action="$(cut -f1 <<<"$prev")"
-            backup="$(cut -f3 <<<"$prev")"
-        elif is_dry_run; then
-            dry "would back up $dest"
+        if prev="$(_manifest_earliest_record "$dest")"; then
+            action="$(cut -f1 <<<"$prev")" || return
+            backup="$(cut -f3 <<<"$prev")" || return
         else
-            backup="$(backup_of "$dest")"
+            prev_status=$?
+            [[ "$prev_status" == 1 ]] || return "$prev_status"
+            if is_dry_run; then
+                dry "would back up $dest"
+            else
+                backup="$(backup_of "$dest")" || return
+            fi
         fi
     fi
 
@@ -173,9 +180,9 @@ install_symlink() {
         return 0
     fi
 
-    _manifest_record_created_dirs "$(dirname -- "$dest")"
-    ln -sfn -- "$target" "$dest"
-    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "" "" "$backup"
+    _manifest_record_created_dirs "$(dirname -- "$dest")" || return
+    ln -sfn -- "$target" "$dest" || return
+    manifest_record_file "${SWAY98_MODULE:-manual}" "$action" "$dest" "" "" "$backup" || return
     info "$action: $dest -> $target"
 }
 
@@ -185,7 +192,7 @@ install_dir() {
     [[ -d "$src" ]] || die "install_dir: source does not exist: $src"
 
     if [[ ! -e "$dest" ]]; then
-        _install_tree_create "$src" "$dest"
+        _install_tree_create "$src" "$dest" || return
         return 0
     fi
 
@@ -196,14 +203,14 @@ install_dir() {
         return 0
     fi
 
-    _manifest_record_created_dirs "$dest"
+    _manifest_record_created_dirs "$dest" || return
     while IFS= read -r -d '' f; do
         rel="${f#"$src"/}"
-        install_file "$f" "$dest/$rel"
+        install_file "$f" "$dest/$rel" || return
     done < <(find "$src" -type f -print0)
     while IFS= read -r -d '' l; do
         rel="${l#"$src"/}"
-        install_symlink "$l" "$dest/$rel"
+        install_symlink "$l" "$dest/$rel" || return
     done < <(find "$src" -type l -print0)
 }
 
@@ -214,7 +221,7 @@ install_dir() {
 # install_file() costs four processes per file, which is fine for a handful of
 # config files and terrible for a theme.
 _install_tree_create() {
-    local src="$1" dest="$2" hashes escaped_list odd_file subdir
+    local src="$1" dest="$2" hashes escaped_list odd_file odd_hash subdir
 
     if is_dry_run; then
         dry "create $dest ($(find "$src" -type f | wc -l) files from ${src#"$SWAY98_ROOT"/})"
@@ -223,36 +230,37 @@ _install_tree_create() {
 
     # Parents first (recorded), then the tree itself: `cp -a src dest` only copies
     # into dest when dest does not exist yet.
-    _manifest_record_created_dirs "$(dirname -- "$dest")"
-    cp -a -- "$src" "$dest"
-    manifest_record_dir "${SWAY98_MODULE:-manual}" "$dest"
+    _manifest_record_created_dirs "$(dirname -- "$dest")" || return
+    cp -a -- "$src" "$dest" || return
+    manifest_record_dir "${SWAY98_MODULE:-manual}" "$dest" || return
 
     # Every subdirectory the copy created, shallowest first so that the reverse
     # rollback order removes them deepest first. Forgetting this leaves empty
     # directory trees in $HOME after an uninstall (found by tests/run-sandbox.sh).
     {
         while IFS= read -r -d '' subdir; do
-            printf '%s\t%s\n' "${SWAY98_MODULE:-manual}" "$subdir"
+            printf '%s\t%s\n' "${SWAY98_MODULE:-manual}" "$subdir" || return
         done < <(find "$dest" -mindepth 1 -type d -print0)
-    } >>"$(manifest_dirs)"
+    } >>"$(manifest_dirs)" || return
 
-    hashes="$(mktemp)"
-    find "$dest" -type f -print0 | xargs -0 -r sha256sum >"$hashes"
+    hashes="$(mktemp)" || return
+    find "$dest" -type f -print0 | xargs -0 -r sha256sum >"$hashes" || return
 
     # sha256sum prints "<64 hex chars>  <path>". A leading backslash means the
     # path contains characters sha256sum escaped; those rare files are recorded
     # individually below instead of in the bulk pass.
-    escaped_list="$(mktemp)"
+    escaped_list="$(mktemp)" || return
     awk -v module="${SWAY98_MODULE:-manual}" '
         substr($0, 1, 1) == "\\" { print substr($0, 68) >"/dev/stderr"; next }
         { printf "%s\tcreate\t%s\t%s\t\t\n", module, substr($0, 67), substr($0, 1, 64) }
-    ' "$hashes" >>"$(manifest_files)" 2>"$escaped_list"
+    ' "$hashes" >>"$(manifest_files)" 2>"$escaped_list" || return
 
     if [[ -s "$escaped_list" ]]; then
         warn "$(wc -l <"$escaped_list") file(s) with unusual names recorded individually"
         while IFS= read -r odd_file; do
             [[ -f "$odd_file" ]] || continue
-            manifest_record_file "${SWAY98_MODULE:-manual}" "create" "$odd_file" "$(sha256_of "$odd_file")" "" ""
+            odd_hash="$(sha256_of "$odd_file")" || return
+            manifest_record_file "${SWAY98_MODULE:-manual}" "create" "$odd_file" "$odd_hash" "" "" || return
         done <"$escaped_list"
     fi
     rm -f -- "$escaped_list"
@@ -263,9 +271,9 @@ _install_tree_create() {
     # them, it never restores them from a backup.
     {
         while IFS= read -r -d '' link; do
-            printf '%s\tcreate\t%s\t\t\t\n' "${SWAY98_MODULE:-manual}" "$link"
+            printf '%s\tcreate\t%s\t\t\t\n' "${SWAY98_MODULE:-manual}" "$link" || return
         done < <(find "$dest" -type l -print0)
-    } >>"$(manifest_files)"
+    } >>"$(manifest_files)" || return
 
     rm -f -- "$hashes"
     info "created: $dest ($(wc -l <"$(manifest_files)") manifest rows so far)"
@@ -285,8 +293,8 @@ _manifest_record_created_dirs() {
         if is_dry_run; then
             dry "create dir ${created[i]}"
         else
-            mkdir -p -- "${created[i]}"
-            manifest_record_dir "${SWAY98_MODULE:-manual}" "${created[i]}"
+            mkdir -p -- "${created[i]}" || return
+            manifest_record_dir "${SWAY98_MODULE:-manual}" "${created[i]}" || return
         fi
     done
 }
