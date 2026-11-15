@@ -15,6 +15,8 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/common.sh"
 # shellcheck source=lib/manifest.sh
 . "$SWAY98_ROOT/lib/manifest.sh"
+# shellcheck source=lib/hooks.sh
+. "$SWAY98_ROOT/lib/hooks.sh"
 
 ONLY=""
 
@@ -28,6 +30,7 @@ Usage: ./uninstall.sh [options]
   -y, --yes          assume yes
       --only MODULE  revert a single module
       --list         show what the manifest currently holds
+      --no-hooks     skip user post-uninstall hook
   -h, --help         this text
 EOF
 }
@@ -39,6 +42,7 @@ parse_args() {
             -y|--yes)     export SWAY98_ASSUME_YES=1; shift ;;
             --only)       ONLY="${2:?--only needs an argument}"; shift 2 ;;
             --list)       list_manifest; exit 0 ;;
+            --no-hooks)   SWAY98_NO_HOOKS=1; shift ;;
             -h|--help)    usage; exit 0 ;;
             *)            usage >&2; die "unknown option: $1" ;;
         esac
@@ -96,6 +100,11 @@ main() {
     step "done"
     info "backups are kept in $SWAY98_STATE/backups/$SWAY98_TS"
     info "reload sway to see it: swaymsg reload"
+    if [[ -n "$ONLY" ]]; then
+        sway98_run_hook post-uninstall "$ONLY"
+    else
+        sway98_run_hook post-uninstall
+    fi
 }
 
 main "$@"

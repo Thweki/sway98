@@ -32,6 +32,7 @@ lib/manifest.sh         事务层：备份、manifest 记录、install_file/dir�
 lib/edit.sh             include_block（标记块）、ini_set（INI 键值）、block_replace
 lib/fetch.sh            http_get、archive_org_fetch（metadata API + sha1 校验）、git_clone_pinned
 lib/menu.sh             交互式模块选择（gum 可选，纯 bash 兜底）
+lib/hooks.sh            用户可选的 post-install / post-uninstall 生命周期脚本
 modules/<id>/module.sh  模块实现（契约见 §3）
 modules/<id>/files/...  模块自带的配置/样式资产
 docs/                   兼容性、故障排查（面向用户）
@@ -95,6 +96,13 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm` 后才覆盖，否则跳过并在摘要里说明。
 4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。任何"装了但卸不掉"的改动视为 bug。
 5. **系统级模块**（保留给后续里程碑的 `sddm`/`plymouth`）：必须 `--system` 显式开启，README/PLAN 里标注变砖风险。
+
+用户扩展例外：用户自行放置并赋予执行权限的
+`${XDG_CONFIG_HOME:-$HOME/.config}/sway98/hooks/post-install` 和 `post-uninstall`
+可在主流程正常返回后作为独立进程运行，用于刷新桌面等个人集成。不提供、不安装默认 hook；
+`--dry-run` 只预告，`--no-hooks` 完全跳过。hook 的任意副作用不进 manifest，也不自动回滚，
+由用户负责；这不豁免仓库自带模块的事务要求。hook 失败须报告路径和退出码，并让入口非零退出，
+不撤销已完成的安装或卸载。调用参数、环境和跳过条件见 README。
 
 ---
 

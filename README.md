@@ -112,6 +112,50 @@ module picker, `grim`/`slurp` for screenshots.
 ./uninstall.sh --only firefox        roll back one module
 ```
 
+## Optional lifecycle hooks
+
+To refresh your desktop automatically after installing or removing a theme, place
+an executable script named `post-install` or `post-uninstall` in
+`${XDG_CONFIG_HOME:-$HOME/.config}/sway98/hooks/`. No hooks ship with sway98;
+creating the script and making it executable opts in. For example:
+
+```bash
+hook_dir="${XDG_CONFIG_HOME:-$HOME/.config}/sway98/hooks"
+mkdir -p -- "$hook_dir"
+cat >"$hook_dir/post-install" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${SWAYSOCK:-}" ]]; then
+    swaymsg reload
+fi
+EOF
+chmod +x -- "$hook_dir/post-install"
+# Optional: use the same refresh after rollback.
+cp -- "$hook_dir/post-install" "$hook_dir/post-uninstall"
+```
+
+* `post-install` runs once after the module loop returns successfully, including
+  on reinstall. Its arguments are the selected module IDs, including accepted
+  dependencies. Modules may have skipped work, so these are the requested scope.
+* `post-uninstall` runs after rollback and, for a full uninstall, manifest archival.
+  It receives the module ID for `--only MODULE`, or no arguments for a full uninstall.
+  Existing rollback warnings do not prevent it from running.
+* Scripts run as separate processes with their own shebang, the caller's working
+  directory and environment, and stdin redirected from `/dev/null`. `SWAY98_HOOK_EVENT`
+  is `post-install` or `post-uninstall`; `SWAY98_STATE` is the resolved state path.
+  Output goes directly to the terminal; start, success and failure messages go
+  to the normal operation log. Scripts should be noninteractive and repeatable.
+* Missing scripts are silently skipped; non-executable files, directories and
+  dangling symlinks are skipped with a warning. `--dry-run` only previews hooks.
+  `--help`, `--list`, empty selections, absent manifests, cancellations and fatal
+  operation errors do not run them. Use `--no-hooks` on either entry point to
+  suppress hooks for that invocation.
+* Hook failure reports the path and exit code and makes the command exit with
+  that code. The completed install or rollback remains in place. Hook effects
+  are outside the manifest and are **not automatically reversible**; keep hooks
+  focused on refreshing applications, or manage their cleanup yourself. The
+  user-owned scripts remain in place after uninstall.
+
 ## Honest limitations
 
 | Looks | Applications |
