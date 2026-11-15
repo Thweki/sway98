@@ -66,6 +66,14 @@ record_cmd() {
     printf '%s\t%s\n' "${SWAY98_MODULE:-manual}" "$cmd" >>"$(manifest_commands)"
 }
 
+# record_cmd_argv <command> [arg...] — serialize data as shell arguments, never
+# shell syntax. Bash %q also escapes tabs/newlines to keep one TSV row per command.
+record_cmd_argv() {
+    local revert_cmd
+    printf -v revert_cmd '%q ' "$@"
+    record_cmd "$revert_cmd"
+}
+
 record_module() {
     local module="$1" status="$2"
     is_dry_run && return 0

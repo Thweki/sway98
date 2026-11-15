@@ -58,7 +58,7 @@ gsettings_set_if_changed() {
         return 0
     fi
     gsettings set "$schema" "$key" "$value"
-    record_cmd "gsettings set $schema $key $old"
+    record_cmd_argv gsettings set "$schema" "$key" "$old"
     info "gsettings $schema $key = $value (was $old)"
 }
 

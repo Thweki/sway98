@@ -59,7 +59,7 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 - 元数据变量在 **sourcing 时**读取（`lib/menu.sh` 用子 shell source 取变量）。
 - `sway98_apply` 在 **子 shell** 中执行（`( source module.sh; sway98_apply )`），因此模块可以随意定义局部函数/变量，不会污染主进程。
 - 一切文件写入必须走 `install_file` / `install_dir` / `ini_set` / `include_block`——**它们才会写 manifest**。手写 `cp`/`sed -i` 到用户目录属严重违规（无法回滚）。
-- 需要执行的外部命令（`gsettings`、`flatpak override`、`fc-cache`）用 `record_cmd "<幂等的反向命令>"` 记录回滚命令。
+- 需要执行的外部命令（`gsettings`、`flatpak override`、`fc-cache`）记录幂等的反向命令。含设置值、用户路径等变量参数时必须用 `record_cmd_argv command "arg"...`，防止卸载时将数据作为 shell 代码执行；`record_cmd "<反向命令>"` 只用于可信的固定 shell 代码。
 - 需要 sway 运行时生效的（`exec waybar`、开机音）写到 `~/.config/sway/conf.d/sway98.d/<id>.conf`，由 sway98 主片段通配 `include`。
 - 缺依赖时 `warn` + `return 0`（跳过该模块并计入摘要），**不要**擅自 `pacman -S`。
 
@@ -76,7 +76,8 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `backup_path <path>` | 复制到 `$STATE/backups/<ts>/...` 并返回路径 |
 | `install_file <src> <dest>` | 备份→写入→记 manifest（create/modify） |
 | `install_dir <src-dir> <dest-dir>` | 逐文件 install_file + 记录目录创建 |
-| `record_cmd <module> <revert-cmd>` | 记录一条回滚命令（按逆序执行） |
+| `record_cmd <revert-cmd>` | 记录可信的固定回滚代码，模块取自 `$SWAY98_MODULE`（按逆序执行） |
+| `record_cmd_argv <command> [arg...]` | 安全转义各参数后记录回滚命令，设置值和路径必须走此接口 |
 | `include_block <file> <block-id> <line>...` | 用 `# >>> id >>>` / `# <<< id <<<` 标记块幂等加一行 include |
 | `ini_set <file> <section> <key> <value>` | 幂等改 INI 键，首次改动时整文件进 manifest |
 | `http_get <url> <dest>` | curl 带重试/超时/UA |
