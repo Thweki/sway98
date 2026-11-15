@@ -81,12 +81,14 @@ include_block() {
         awk -v b="$begin" -v e="$end" '
             $0 == b { skip = 1; next }
             $0 == e { skip = 0; next }
-            !skip   { print }
+            !skip {
+                # Defer empty lines until more content arrives. Trailing empty
+                # lines are discarded without repeatedly rewriting the file.
+                if ($0 == "") { blanks++; next }
+                while (blanks > 0) { print ""; blanks-- }
+                print
+            }
         ' "$file" >"$tmp"
-        # Trim trailing blank lines the strip may have left behind.
-        while [[ -s "$tmp" && -z "$(tail -n 1 "$tmp")" ]]; do
-            sed -i '$d' "$tmp"
-        done
         # Keep exactly one trailing newline before appending the block.
         if [[ -s "$tmp" ]]; then
             printf '\n' >>"$tmp"
