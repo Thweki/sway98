@@ -100,6 +100,13 @@ sudo pacman -S --needed sway waybar kitty wofi mako swaylock fcitx5 fcitx5-gtk \
 Optional: `paru` or `yay` for the AUR copy of Chicago95, `gum` for a nicer
 module picker, `grim`/`slurp` for screenshots.
 
+The default Chicago95 checkout in `$XDG_STATE_HOME/sway98/upstream/Chicago95`
+(`~/.local/state` when unset) is managed: every use verifies the full pinned
+commit and re-pins an existing checkout when needed. To use your own source tree,
+set `SWAY98_THEME_SRC=/path/to/Chicago95`. An existing external tree containing
+`Theme/Chicago95` is caller-managed, may have no Git metadata, and is used without
+changing its revision. A missing destination is cloned at the pin.
+
 ## Options
 
 ```
@@ -137,15 +144,17 @@ Everything is Bash; there is no build step, and the installer's only runtime
 dependencies are `curl`, `git` and coreutils.
 
 ```
-make check              # shellcheck, dry run, install/uninstall roundtrip
+make check              # shellcheck, local Git pin tests, dry run, roundtrip
+make check-upstream     # exact commit verification; local Git fixtures only
 make check-real         # the same against a real Chicago95 checkout
 tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```
 
 `make check` needs `shellcheck` (`pacman -S shellcheck` / `apt install shellcheck`).
-Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
-the machine running them is modified — including the screenshot generator, which
-renders a private headless sway session instead of photographing your own desktop.
+Tests use a throwaway `$HOME` (the Git fixtures use `mktemp`, the install checks
+use `tests/sandbox/`), so nothing on the machine running them is modified —
+including the screenshot generator, which renders a private headless sway session
+instead of photographing your own desktop.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and
 the invariants the test suite enforces are written down in [AGENTS.md](AGENTS.md)

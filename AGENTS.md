@@ -81,7 +81,10 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `ini_set <file> <section> <key> <value>` | 幂等改 INI 键，首次改动时整文件进 manifest |
 | `http_get <url> <dest>` | curl 带重试/超时/UA |
 | `archive_org_fetch <item> <remote-path> <dest> <sha1>` | 见 §6，唯一允许的微软素材下载方式 |
-| `git_clone_pinned <url> <ref> <dest>` | 浅克隆并 checkout 指定 commit，校验存在 |
+| `git_clone_pinned <url> <full-commit-id> <dest>` | 浅克隆或复用本地对象，checkout 后验证 HEAD 与完整 commit ID 精确一致；拒绝缩写与符号引用 |
+
+默认 `$STATE/upstream/Chicago95` 是受管理的克隆，每次使用都要验证 pin，不能因为主题目录已存在而跳过。
+显式将 `SWAY98_THEME_SRC` 指向其他路径时，已有且包含 `Theme/Chicago95` 的外部源码树由调用者管理，允许无 Git 元数据，不改其版本；不存在时仍按 pin 克隆。
 
 `$STATE` = `${XDG_STATE_HOME:-~/.local/state}/sway98`。
 manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/sha_old/backup）、`manifest/commands.tsv`（module/revert_cmd）、`manifest/modules.tsv`（module/version/timestamp）。
@@ -133,7 +136,8 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./install.sh --modules theme,gtk,sway   # 非交互
 ./uninstall.sh                          # 按 manifest 全量回滚
 
-make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+make check                              # shellcheck + 本地 Git + 干跑 + 沙箱往返（发布前必跑）
+make check-upstream                     # 本地 Git fixture：完整 pin 验证，无网络
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原
