@@ -5,9 +5,13 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-shellcheck check-dryrun check-roundtrip check-isolation check-real install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-isolation check-real install-hooks
 
-check: check-shellcheck check-dryrun check-roundtrip check-isolation
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-isolation
+
+check-syntax:
+	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
+	@echo "bash -n: clean"
 
 # Inherited paths must not escape either harness, including on failure.
 check-isolation:

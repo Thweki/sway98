@@ -16,6 +16,11 @@
 
 set -euo pipefail
 
+# Inherited overrides must never redirect tests into the caller's real state.
+for variable in "${!SWAY98_@}" "${!XDG_@}"; do
+    unset "$variable"
+done
+
 SWAY98_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SANDBOX="$SWAY98_ROOT/tests/sandbox"
 MODE="${1:-roundtrip}"
@@ -96,7 +101,10 @@ case "$MODE" in
         if grep -q 'would clone\|GET https://archive.org' "$out"; then
             pass "dry run planned the download steps without performing them"
         fi
-        diff_home >/dev/null || { diff_home | head -20 >&2; fail "dry run modified the sandbox"; }
+        if ! diff_home >"$SANDBOX/dry-run.diff"; then
+            head -20 "$SANDBOX/dry-run.diff" >&2
+            fail "dry run modified the sandbox"
+        fi
         [[ -e "$SANDBOX/state/sway98/manifest/files.tsv" ]] && fail "dry run wrote a manifest"
         pass "dry run left the sandbox untouched"
         ;;
