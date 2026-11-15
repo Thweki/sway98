@@ -26,6 +26,7 @@ Windows 98 外观，给 **Arch Linux + Sway**，一条命令装、一条命令�
 ```
 install.sh              入口：参数解析 → preflight → 模块选择 → apply
 uninstall.sh            按 manifest 回滚全部改动
+backups.sh              列出保留备份，恢复到用户指定的新目录（不改当前安装）
 lib/common.sh           日志、die、确认、常量（SWAY98_VERSION）
 lib/detect.sh           发行版/会话/输出/locale/程序 探测
 lib/manifest.sh         事务层：备份、manifest 记录、install_file/dir、record_cmd、restore
@@ -95,6 +96,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm` 后才覆盖，否则跳过并在摘要里说明。
 4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。任何"装了但卸不掉"的改动视为 bug。
 5. **系统级模块**（保留给后续里程碑的 `sddm`/`plymouth`）：必须 `--system` 显式开启，README/PLAN 里标注变砖风险。
+6. **备份恢复副本**：`backups.sh --restore SESSION --to NEW_DIRECTORY` 仅向 `$HOME` 下、state 之外的新目录复制保留备份，父目录必须已存在，不覆盖任何已有目标。此命令的用户所有副本不属于安装器配置，因此不走 `install_file`、不记 manifest、不随卸载删除；这是文件写入规则的明确例外。保留 `home/`、`system/` 布局和符号链接，不执行回滚命令、不修改原始备份或当前配置。列表和 dry-run 不创建目录或写日志。
 
 ---
 
@@ -132,9 +134,13 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./install.sh                            # 交互选择
 ./install.sh --modules theme,gtk,sway   # 非交互
 ./uninstall.sh                          # 按 manifest 全量回滚
+./backups.sh --list                     # 列出保留备份批次（卸载后也可用）
+./backups.sh --list 20261115-100000      # 查看某批次中的路径与类型
+./backups.sh --restore 20261115-100000 --to "$HOME/recovered-sway98" --dry-run
 
 make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
+bash tests/backups.sh                    # 备份列表、恢复、安全边界及卸载后恢复
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原
 tests/verify-real-tree.sh               # 真素材版：入口与 make check-real 相同

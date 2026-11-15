@@ -63,6 +63,38 @@ Every module is optional. Nothing is preselected: you choose, module by module.
   writes nothing at all — not even the manifest.
 * **Idempotent.** Running the installer again only writes what actually differs.
 
+## Recover retained backups
+
+Use `backups.sh` to find and recover original files saved by earlier installs,
+including after uninstall. No experimental flag or desktop session is needed.
+
+```bash
+./backups.sh --list
+./backups.sh --list 20261115-100000
+./backups.sh --restore 20261115-100000 --to "$HOME/recovered-sway98" --dry-run
+./backups.sh --restore 20261115-100000 --to "$HOME/recovered-sway98"
+```
+
+Choose a session from your own listing. Recovery requires a **new directory**
+under your home, outside sway98's state, whose parent already exists. It copies
+the session into `home/` and `system/` subtrees, preserving file modes, timestamps
+and symlinks (including dangling links). For example, an original Sway config is
+recovered as `recovered-sway98/home/.config/sway/config`. Review the copy before
+manually applying any files. Existing destinations are refused; symlinks in the
+backup are copied as links, never followed.
+
+This leaves live configuration, manifests and source backups unchanged and never
+executes rollback commands. Recovery copies belong to you and survive uninstall;
+delete them yourself when no longer needed. A failed copy returns an error and
+keeps any partial recovery directory, so retry with a new destination.
+
+These are **saved originals, not full desktop snapshots**: newly created files
+have no backup, unchanged reinstalls may leave empty sessions, and a backup may
+still belong to the first install that modified a file. Listing shows paths and
+types, not file contents; unusual paths use Bash shell quoting. The command reads
+`${XDG_STATE_HOME:-$HOME/.local/state}/sway98/backups` (or `SWAY98_STATE/backups`
+when overridden) and does not require an active manifest.
+
 ## Microsoft assets
 
 The repository contains **no** Microsoft artwork, sounds or fonts — only the

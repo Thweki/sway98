@@ -5,9 +5,12 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-sandbox check-dryrun check-roundtrip check-real check-presets install-hooks
+.PHONY: check check-syntax check-shellcheck check-sandbox check-dryrun check-roundtrip check-real check-presets check-backups install-hooks
 
-check: check-syntax check-shellcheck check-sandbox check-presets
+check: check-syntax check-shellcheck check-sandbox check-presets check-backups
+
+check-backups:
+	@bash tests/backups.sh
 
 check-presets:
 	@bash tests/module-presets.sh
