@@ -66,7 +66,8 @@ gsettings_set_if_changed() {
 #
 # Adds / replaces a marker delimited block. Idempotent by construction: the
 # previous block is stripped before the new one is appended, so re-running an
-# install never stacks duplicate lines.
+# install never stacks duplicate lines. Reject malformed marker pairs rather
+# than risk deleting unrelated configuration after an unmatched opening marker.
 #
 # Set SWAY98_BLOCK_PREFIX when the target file is not shell/INI syntax
 # (e.g. "//" for user.js, "<!-- ... -->" style markers get the same prefix).
@@ -78,11 +79,15 @@ include_block() {
     tmp="$(mktemp)"
 
     if [[ -f "$file" ]]; then
-        awk -v b="$begin" -v e="$end" '
-            $0 == b { skip = 1; next }
-            $0 == e { skip = 0; next }
+        if ! awk -v b="$begin" -v e="$end" '
+            $0 == b { if (skip) exit 1; skip = 1; next }
+            $0 == e { if (!skip) exit 1; skip = 0; next }
             !skip   { print }
-        ' "$file" >"$tmp"
+            END     { if (skip) exit 1 }
+        ' "$file" >"$tmp"; then
+            rm -f -- "$tmp"
+            die "cannot update block '$id' in $file: unreadable file or malformed markers; file left unchanged"
+        fi
         # Trim trailing blank lines the strip may have left behind.
         while [[ -s "$tmp" && -z "$(tail -n 1 "$tmp")" ]]; do
             sed -i '$d' "$tmp"
