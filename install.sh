@@ -21,6 +21,8 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/fetch.sh"
 # shellcheck source=lib/menu.sh
 . "$SWAY98_ROOT/lib/menu.sh"
+# shellcheck source=lib/hooks.sh
+. "$SWAY98_ROOT/lib/hooks.sh"
 
 SELECTION=""
 MODE=""
@@ -42,6 +44,7 @@ Behaviour
   -n, --dry-run          print every change without touching anything
   -y, --yes              assume yes for all prompts
       --verbose          log every helper call
+      --no-hooks         skip user post-install hook
       --only MODULE      restrict to a single module (implies --modules)
 
 Examples
@@ -63,6 +66,7 @@ parse_args() {
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
             --verbose)      export SWAY98_VERBOSE=1; shift ;;
+            --no-hooks)     SWAY98_NO_HOOKS=1; shift ;;
             -h|--help)      usage; exit 0 ;;
             *)              usage >&2; die "unknown option: $1" ;;
         esac
@@ -224,6 +228,9 @@ main() {
     fi
 
     apply_selection "$selection"
+    local -a hook_modules=()
+    read -r -a hook_modules <<<"$selection"
+    sway98_run_hook post-install "${hook_modules[@]}"
 }
 
 main "$@"
