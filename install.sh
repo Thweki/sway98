@@ -21,9 +21,12 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/fetch.sh"
 # shellcheck source=lib/menu.sh
 . "$SWAY98_ROOT/lib/menu.sh"
+# shellcheck source=lib/verify.sh
+. "$SWAY98_ROOT/lib/verify.sh"
 
 SELECTION=""
 MODE=""
+VERIFY=0
 
 usage() {
     cat <<EOF
@@ -39,6 +42,7 @@ Selection
       --system           also offer modules that change system paths (needs sudo)
 
 Behaviour
+      --verify          check managed files against the manifest, then exit
   -n, --dry-run          print every change without touching anything
   -y, --yes              assume yes for all prompts
       --verbose          log every helper call
@@ -59,6 +63,7 @@ parse_args() {
             -a|--all)       MODE="all"; shift ;;
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; shift ;;
+            --verify)      VERIFY=1; shift ;;
             -n|--dry-run)   export SWAY98_DRY_RUN=1; shift ;;
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
@@ -179,6 +184,15 @@ apply_selection() {
 
 main() {
     parse_args "$@"
+
+    if [[ "$VERIFY" == "1" ]]; then
+        if [[ -n "$MODE" || -n "$SELECTION" ]]; then
+            printf '%s\n' '--verify cannot be combined with module selection or --list' >&2
+            return 1
+        fi
+        sway98_verify_files "$(manifest_files)"
+        return
+    fi
 
     case "${MODE:-}" in
         list) list_modules; exit 0 ;;

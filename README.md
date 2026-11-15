@@ -104,6 +104,7 @@ module picker, `grim`/`slurp` for screenshots.
 
 ```
 ./install.sh --list                  list modules and exit
+./install.sh --verify                check installed files without changing them
 ./install.sh --dry-run --all         full rehearsal, zero side effects
 ./install.sh --modules theme,gtk,sway
 ./install.sh --recommended           the set that gives you the look fastest
@@ -111,6 +112,17 @@ module picker, `grim`/`slurp` for screenshots.
 ./uninstall.sh --dry-run             see the rollback first
 ./uninstall.sh --only firefox        roll back one module
 ```
+
+`--verify` reads the active file manifest and compares each path with its latest
+installed SHA-256 hash, so edits or missing files can be spotted before a
+reinstall or rollback. It reports each path and a summary without creating logs,
+prompting, downloading, running modules or contacting the desktop. It cannot be
+combined with module selection or `--list`. Exit status is 1 for changed, missing,
+wrong-type or unreadable files, or an invalid/unreadable manifest; otherwise 0.
+An absent or empty file manifest reports nothing to verify. Symlinks are checked
+for presence and type but reported as **UNVERIFIED**, since their targets are not
+stored in the manifest. Permissions, backups and desktop settings are not checked;
+a successful exit does not certify those or the symlink targets.
 
 ## Honest limitations
 
