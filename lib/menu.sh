@@ -67,23 +67,17 @@ module_field() {
 }
 
 module_defaults() {
-    local id scope
-    while IFS=$'\t' read -r id _ _ _ _ _ _; do
-        scope="$(module_field "$id" scope)"
-        if [[ "$scope" == "system" && "$SWAY98_SYSTEM" != "1" ]]; then
-            continue
-        fi
-        printf '%s\n' "$id"
-    done < <(modules_table)
+    # Filter the metadata already loaded by modules_table instead of looking up
+    # each module again. AWK preserves empty TSV fields and discovery order.
+    modules_table | awk -F '\t' -v allow_system="$SWAY98_SYSTEM" '
+        $3 != "system" || allow_system == "1" { print $1 }
+    '
 }
 
 module_recommended() {
-    local id scope
-    while IFS=$'\t' read -r id _ _ _ _ _ _; do
-        scope="$(module_field "$id" scope)"
-        [[ "$scope" == "system" && "$SWAY98_SYSTEM" != "1" ]] && continue
-        [[ "$(module_field "$id" recommended)" == "yes" ]] && printf '%s\n' "$id"
-    done < <(modules_table)
+    modules_table | awk -F '\t' -v allow_system="$SWAY98_SYSTEM" '
+        ($3 != "system" || allow_system == "1") && $4 == "yes" { print $1 }
+    '
 }
 
 # Normalize a decimal menu index before arithmetic. Check its length first so
