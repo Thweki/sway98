@@ -105,12 +105,20 @@ module picker, `grim`/`slurp` for screenshots.
 ```
 ./install.sh --list                  list modules and exit
 ./install.sh --dry-run --all         full rehearsal, zero side effects
+./install.sh --all --exclude sounds,flatpak
 ./install.sh --modules theme,gtk,sway
 ./install.sh --recommended           the set that gives you the look fastest
 ./install.sh --only waybar           add or refresh a single module
 ./uninstall.sh --dry-run             see the rollback first
 ./uninstall.sh --only firefox        roll back one module
 ```
+
+`--exclude` accepts comma-separated module IDs and can be repeated. It filters
+any selection (including the interactive picker), and excluded modules are never
+added back by dependency prompts, even with `--yes`. Dependencies remain optional;
+the installer warns when a selected module needs an excluded companion. Unknown
+exclusion IDs are rejected before installation starts. Excluding every selected
+module leaves nothing to install; it does not uninstall existing modules.
 
 ## Honest limitations
 
@@ -143,8 +151,9 @@ tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```
 
 `make check` needs `shellcheck` (`pacman -S shellcheck` / `apt install shellcheck`).
-Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
-the machine running them is modified — including the screenshot generator, which
+Every test runs against a throwaway `$HOME` under `tests/sandbox/` or a temporary
+directory, so nothing on the machine running them is modified — including the
+screenshot generator, which
 renders a private headless sway session instead of photographing your own desktop.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and

@@ -24,6 +24,7 @@ export SWAY98_ROOT
 
 SELECTION=""
 MODE=""
+EXCLUSIONS=""
 
 usage() {
     cat <<EOF
@@ -35,6 +36,7 @@ Selection
   -m, --modules LIST     comma separated module ids, numbers or ranges (1,3-5)
   -a, --all              select every available module
   -r, --recommended      select the recommended set
+      --exclude LIST     omit comma separated module ids (repeatable)
   -l, --list             list modules and exit
       --system           also offer modules that change system paths (needs sudo)
 
@@ -47,6 +49,7 @@ Behaviour
 Examples
   ./install.sh --list
   ./install.sh --dry-run --all
+  ./install.sh --all --exclude sounds,flatpak
   ./install.sh --modules theme,gtk,sway,waybar,kitty
 EOF
 }
@@ -56,6 +59,11 @@ parse_args() {
         case "$1" in
             -m|--modules)   SELECTION="${2:?--modules needs an argument}"; shift 2 ;;
             --only)         SELECTION="${2:?--only needs an argument}"; shift 2 ;;
+            --exclude)
+                [[ "${2:-}" =~ ^[[:alnum:]_-]+(,[[:alnum:]_-]+)*$ ]] \
+                    || die "--exclude needs comma separated module ids"
+                EXCLUSIONS+=" ${2//,/ }"
+                shift 2 ;;
             -a|--all)       MODE="all"; shift ;;
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; shift ;;
@@ -66,6 +74,19 @@ parse_args() {
             -h|--help)      usage; exit 0 ;;
             *)              usage >&2; die "unknown option: $1" ;;
         esac
+    done
+}
+
+_sway98_module_excluded() {
+    [[ " $EXCLUSIONS " == *" $1 "* ]]
+}
+
+_sway98_filter_exclusions() {
+    local id
+    for id in $1; do
+        if ! _sway98_module_excluded "$id"; then
+            printf '%s\n' "$id"
+        fi
     done
 }
 
@@ -132,6 +153,10 @@ expand_requirements() {
         [[ -n "$req" ]] || continue
         local r
         for r in $req; do
+            if _sway98_module_excluded "$r"; then
+                warn "'$id' selected without '$r' (--exclude)"
+                continue
+            fi
             if ! grep -qw -- "$r" <<<"$out"; then
                 if confirm "module '$id' works best with '$r'; install '$r' too?"; then
                     out="$out $r"
@@ -179,6 +204,7 @@ apply_selection() {
 
 main() {
     parse_args "$@"
+    validate_selection "$EXCLUSIONS"
 
     case "${MODE:-}" in
         list) list_modules; exit 0 ;;
@@ -204,13 +230,14 @@ main() {
                      fi ;;
     esac
 
+    validate_selection "$selection"
+    selection="$(_sway98_filter_exclusions "$selection" | tr '\n' ' ')"
     if [[ -z "${selection// /}" ]]; then
         info "nothing selected, nothing to do"
         exit 0
     fi
 
     selection="$(tr ' ' '\n' <<<"$selection" | sed '/^$/d' | awk '!seen[$0]++' | tr '\n' ' ')"
-    validate_selection "$selection"
     selection="$(expand_requirements "$selection" | tr '\n' ' ')"
 
     printf '\n' >&2
