@@ -1,0 +1,2 @@
+/* Existing user customizations must return after rollback. */
+#TabsToolbar { background: #abcdef !important; }
