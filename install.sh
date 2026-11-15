@@ -184,6 +184,7 @@ main() {
         list) list_modules; exit 0 ;;
     esac
 
+    _manifest_validate_paths "$SWAY98_STATE/backups/$SWAY98_TS"
     if [[ "$SWAY98_DRY_RUN" != "1" ]]; then
         mkdir -p -- "$SWAY98_STATE/log"
         export SWAY98_LOG="$SWAY98_STATE/log/install-$SWAY98_TS.log"

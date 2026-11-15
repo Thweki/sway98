@@ -19,7 +19,32 @@ manifest_commands() { printf '%s\n' "$SWAY98_STATE/manifest/commands.tsv"; }
 manifest_dirs() { printf '%s\n' "$SWAY98_STATE/manifest/dirs.tsv"; }
 manifest_modules() { printf '%s\n' "$SWAY98_STATE/manifest/modules.tsv"; }
 
+# Paths are stored literally in TSV and compared through awk -v. Reject TSV
+# delimiters and characters escaped by sha256sum/awk before any filesystem write.
+# Keep this policy shared by the bulk copy, incremental writes and backups.
+_manifest_validate_paths() {
+    local path
+    for path in "$@"; do
+        case "$path" in
+            *$'\t'*|*$'\n'*|*$'\r'*|*\\*)
+                die 'unsupported manifest path: tabs, newlines, carriage returns and backslashes are not supported'
+                ;;
+        esac
+    done
+}
+
+# Validate the entire tree before copying even its first entry. Empty directories
+# and symlinks also produce manifest paths and must obey the same policy.
+_manifest_validate_tree() {
+    local src="$1" dest="$2" entry
+    _manifest_validate_paths "$dest" "$SWAY98_STATE/backups/$SWAY98_TS"
+    while IFS= read -r -d '' entry; do
+        _manifest_validate_paths "$dest/${entry#"$src"/}"
+    done < <(find "$src" -mindepth 1 -print0)
+}
+
 manifest_init() {
+    _manifest_validate_paths "$SWAY98_STATE/backups/$SWAY98_TS"
     if is_dry_run; then
         dry "would prepare state directory $SWAY98_STATE"
         return 0
@@ -36,6 +61,7 @@ sha256_of() { sha256sum -- "$1" | awk '{print $1}'; }
 # backup_of <path> — copy a file aside for the current run and echo the copy path.
 backup_of() {
     local path="$1" rel out
+    _manifest_validate_paths "$path" "$SWAY98_STATE/backups/$SWAY98_TS"
     if [[ "$path" == "$HOME"/* ]]; then
         rel="home/${path#"$HOME"/}"
     else
@@ -49,6 +75,7 @@ backup_of() {
 
 manifest_record_file() {
     local module="$1" action="$2" path="$3" sha_new="$4" sha_old="${5:-}" backup="${6:-}"
+    _manifest_validate_paths "$path" "$backup" "$SWAY98_STATE"
     is_dry_run && return 0
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$module" "$action" "$path" "$sha_new" "$sha_old" "$backup" >>"$(manifest_files)"
@@ -56,6 +83,7 @@ manifest_record_file() {
 
 manifest_record_dir() {
     local module="$1" path="$2"
+    _manifest_validate_paths "$path" "$SWAY98_STATE"
     is_dry_run && return 0
     printf '%s\t%s\n' "$module" "$path" >>"$(manifest_dirs)"
 }
@@ -82,6 +110,7 @@ record_module() {
 # fields" and lose the action column.
 _manifest_earliest_record() {
     local path="$1" out
+    _manifest_validate_paths "$path"
     [[ -s "$(manifest_files)" ]] || return 1
     out="$(awk -F'\t' -v p="$path" '$3 == p { print $2 "\t" $5 "\t" $6; exit }' "$(manifest_files)")"
     [[ -n "$out" ]] || return 1
@@ -93,6 +122,7 @@ install_file() {
     local src="$1" dest="$2"
     local action sha_new sha_old="" backup="" prev mode
 
+    _manifest_validate_paths "$dest" "$SWAY98_STATE/backups/$SWAY98_TS"
     [[ -f "$src" ]] || die "install_file: source does not exist: $src"
     [[ -d "$dest" ]] && die "install_file: destination is a directory: $dest"
 
@@ -148,6 +178,7 @@ install_file() {
 # without a hash. Rollback deletes it like any file it created.
 install_symlink() {
     local src="$1" dest="$2" target prev
+    _manifest_validate_paths "$dest" "$SWAY98_STATE/backups/$SWAY98_TS"
     target="$(readlink -- "$src")" || die "install_symlink: not a symlink: $src"
 
     if [[ -L "$dest" && "$(readlink -- "$dest")" == "$target" ]]; then
@@ -189,6 +220,8 @@ install_dir() {
         return 0
     fi
 
+    _manifest_validate_tree "$src" "$dest"
+
     # Re-installing over an existing tree: one diff for the whole tree is much
     # cheaper than comparing file by file, and is the common case for `--only`.
     if ! is_dry_run && diff -rq --no-dereference -- "$src" "$dest" >/dev/null 2>&1; then
@@ -214,7 +247,9 @@ install_dir() {
 # install_file() costs four processes per file, which is fine for a handful of
 # config files and terrible for a theme.
 _install_tree_create() {
-    local src="$1" dest="$2" hashes escaped_list odd_file subdir
+    local src="$1" dest="$2" hashes subdir
+
+    _manifest_validate_tree "$src" "$dest"
 
     if is_dry_run; then
         dry "create $dest ($(find "$src" -type f | wc -l) files from ${src#"$SWAY98_ROOT"/})"
@@ -239,23 +274,11 @@ _install_tree_create() {
     hashes="$(mktemp)"
     find "$dest" -type f -print0 | xargs -0 -r sha256sum >"$hashes"
 
-    # sha256sum prints "<64 hex chars>  <path>". A leading backslash means the
-    # path contains characters sha256sum escaped; those rare files are recorded
-    # individually below instead of in the bulk pass.
-    escaped_list="$(mktemp)"
+    # Preflight rejected every character sha256sum escapes, so all output is
+    # literal "<64 hex chars>  <path>" and safe to store directly in TSV.
     awk -v module="${SWAY98_MODULE:-manual}" '
-        substr($0, 1, 1) == "\\" { print substr($0, 68) >"/dev/stderr"; next }
         { printf "%s\tcreate\t%s\t%s\t\t\n", module, substr($0, 67), substr($0, 1, 64) }
-    ' "$hashes" >>"$(manifest_files)" 2>"$escaped_list"
-
-    if [[ -s "$escaped_list" ]]; then
-        warn "$(wc -l <"$escaped_list") file(s) with unusual names recorded individually"
-        while IFS= read -r odd_file; do
-            [[ -f "$odd_file" ]] || continue
-            manifest_record_file "${SWAY98_MODULE:-manual}" "create" "$odd_file" "$(sha256_of "$odd_file")" "" ""
-        done <"$escaped_list"
-    fi
-    rm -f -- "$escaped_list"
+    ' "$hashes" >>"$(manifest_files)"
 
     # Symlinks: not regular files, so they need their own pass. Chicago95's icon
     # theme is mostly symlinks — miss them and every rollback leaves thousands of
@@ -273,6 +296,7 @@ _install_tree_create() {
 
 _manifest_record_created_dirs() {
     local dest="$1" cur parent created=()
+    _manifest_validate_paths "$dest" "$SWAY98_STATE"
     cur="$dest"
     while [[ ! -d "$cur" && "$cur" != "/" && "$cur" != "." ]]; do
         created+=("$cur")

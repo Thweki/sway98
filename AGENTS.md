@@ -86,6 +86,8 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 `$STATE` = `${XDG_STATE_HOME:-~/.local/state}/sway98`。
 manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/sha_old/backup）、`manifest/commands.tsv`（module/revert_cmd）、`manifest/modules.tsv`（module/version/timestamp）。
 
+路径字段以原文写入 TSV，不做转义。目标路径、备份/状态路径及目录树内所有将被记录的路径，禁止包含 TAB、LF、CR 或反斜杠；事务层必须在备份、创建目录或写入目标之前明确报错。批量与增量目录安装都先检查整棵源树（含空目录和符号链接），避免检查到一半才拒绝而留下部分安装；dry-run 同样检查。
+
 ---
 
 ## 5. 安全与可回滚（不可协商）
