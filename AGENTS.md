@@ -32,6 +32,7 @@ lib/manifest.sh         事务层：备份、manifest 记录、install_file/dir�
 lib/edit.sh             include_block（标记块）、ini_set（INI 键值）、block_replace
 lib/fetch.sh            http_get、archive_org_fetch（metadata API + sha1 校验）、git_clone_pinned
 lib/menu.sh             交互式模块选择（gum 可选，纯 bash 兜底）
+lib/parallel.sh         实验性并行调度（显式开启；事务操作互斥）
 modules/<id>/module.sh  模块实现（契约见 §3）
 modules/<id>/files/...  模块自带的配置/样式资产
 docs/                   兼容性、故障排查（面向用户）
@@ -62,6 +63,11 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 - 需要执行的外部命令（`gsettings`、`flatpak override`、`fc-cache`）用 `record_cmd "<幂等的反向命令>"` 记录回滚命令。
 - 需要 sway 运行时生效的（`exec waybar`、开机音）写到 `~/.config/sway/conf.d/sway98.d/<id>.conf`，由 sway98 主片段通配 `include`。
 - 缺依赖时 `warn` + `return 0`（跳过该模块并计入摘要），**不要**擅自 `pacman -S`。
+- 实验性 `--experimental-parallel N`（2–8）默认关闭，实际安装必须搭配 `--yes`；干跑始终走原串行路径。
+  仅 `theme` / `kitty` / `wofi` / `swaylock` 允许同批并发，其余模块在前后等待整批完成，保持原选择顺序。
+  worker 内包装事务 API，以 `mkdir` 锁保护完整的读取/备份/写入/记账过程（含批量目录和编辑操作）；
+  不只保护 manifest 追加。新增允许并发的模块前必须审查依赖、共享下载、交互与外部副作用，并补测试。
+  SIGINT/SIGTERM 等待活动 worker 记账完成后退出；不支持同时启动另一个安装器或卸载器。
 
 ---
 

@@ -112,6 +112,30 @@ module picker, `grim`/`slurp` for screenshots.
 ./uninstall.sh --only firefox        roll back one module
 ```
 
+### Experimental parallel installation (off by default)
+
+```bash
+./install.sh --yes --experimental-parallel 2 --modules theme,kitty,wofi,swaylock
+```
+
+The worker count must be **2–8**. Only `theme`, `kitty`, `wofi` and `swaylock`
+are admitted to concurrent batches; every other module is a serial barrier.
+Selection order across barriers is preserved, and dependencies are still offered
+as usual. `--yes` is required because background modules cannot prompt.
+
+Downloads and module preparation can overlap. File edits, backups and manifest
+writes share a lock, so this does **not** accelerate the large theme copy itself;
+benefits depend on the selected modules and download/cache state. Output from
+workers may interleave. Failed modules produce a nonzero exit status and their
+recorded changes remain removable with `./uninstall.sh`. Interrupting with Ctrl+C
+or SIGTERM waits for active modules to finish recording changes before exiting;
+it starts no further modules. Do not run another installer or uninstaller during
+an installation.
+
+Omit the flag for the original serial behavior. `--dry-run` always stays serial
+and creates no worker state, even with the flag. New modules stay serial until
+their dependencies and side effects have been reviewed for parallel execution.
+
 ## Honest limitations
 
 | Looks | Applications |

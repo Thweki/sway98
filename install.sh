@@ -24,6 +24,7 @@ export SWAY98_ROOT
 
 SELECTION=""
 MODE=""
+EXPERIMENTAL_JOBS=0
 
 usage() {
     cat <<EOF
@@ -43,6 +44,8 @@ Behaviour
   -y, --yes              assume yes for all prompts
       --verbose          log every helper call
       --only MODULE      restrict to a single module (implies --modules)
+      --experimental-parallel N
+                         up to N workers for audited modules (2-8; needs --yes)
 
 Examples
   ./install.sh --list
@@ -63,6 +66,9 @@ parse_args() {
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
             --verbose)      export SWAY98_VERBOSE=1; shift ;;
+            --experimental-parallel)
+                [[ "${2:-}" =~ ^[2-8]$ ]] || die "--experimental-parallel needs a worker count from 2 to 8"
+                EXPERIMENTAL_JOBS="$2"; shift 2 ;;
             -h|--help)      usage; exit 0 ;;
             *)              usage >&2; die "unknown option: $1" ;;
         esac
@@ -184,6 +190,10 @@ main() {
         list) list_modules; exit 0 ;;
     esac
 
+    if ((EXPERIMENTAL_JOBS)) && ! is_dry_run && [[ "$SWAY98_ASSUME_YES" != "1" ]]; then
+        die "--experimental-parallel requires --yes (background modules cannot prompt)"
+    fi
+
     if [[ "$SWAY98_DRY_RUN" != "1" ]]; then
         mkdir -p -- "$SWAY98_STATE/log"
         export SWAY98_LOG="$SWAY98_STATE/log/install-$SWAY98_TS.log"
@@ -223,7 +233,14 @@ main() {
         exit 0
     fi
 
-    apply_selection "$selection"
+    if ((EXPERIMENTAL_JOBS)) && ! is_dry_run; then
+        # shellcheck source=lib/parallel.sh
+        . "$SWAY98_ROOT/lib/parallel.sh"
+        sway98_apply_parallel "$selection" "$EXPERIMENTAL_JOBS"
+    else
+        ((EXPERIMENTAL_JOBS == 0)) || info "experimental parallel: dry runs stay serial"
+        apply_selection "$selection"
+    fi
 }
 
 main "$@"
