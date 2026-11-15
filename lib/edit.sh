@@ -19,15 +19,15 @@ _edit_apply() {
 # (font family, cursor name, ...) so no module has to hardcode them.
 template_render() {
     local src="$1" dest="$2"; shift 2
-    local tmp; tmp="$(mktemp)"
-    cp -- "$src" "$tmp"
+    local tmp; tmp="$(mktemp)" || return
+    cp -- "$src" "$tmp" || return
     local pair key value
     for pair in "$@"; do
         key="${pair%%=*}"
         value="${pair#*=}"
-        sed -i "s|@${key}@|${value//|/\\|}|g" "$tmp"
+        sed -i "s|@${key}@|${value//|/\\|}|g" "$tmp" || return
     done
-    _edit_apply "$tmp" "$dest"
+    _edit_apply "$tmp" "$dest" || return
     rm -f -- "$tmp"
 }
 
@@ -57,8 +57,8 @@ gsettings_set_if_changed() {
         dry "gsettings set $schema $key $value (was $old)"
         return 0
     fi
-    gsettings set "$schema" "$key" "$value"
-    record_cmd "gsettings set $schema $key $old"
+    gsettings set "$schema" "$key" "$value" || return
+    record_cmd "gsettings set $schema $key $old" || return
     info "gsettings $schema $key = $value (was $old)"
 }
 
@@ -75,31 +75,31 @@ include_block() {
     local p="${SWAY98_BLOCK_PREFIX:-#}"
     local begin="$p >>> $id >>>" end="$p <<< $id <<<"
     local tmp line
-    tmp="$(mktemp)"
+    tmp="$(mktemp)" || return
 
     if [[ -f "$file" ]]; then
         awk -v b="$begin" -v e="$end" '
             $0 == b { skip = 1; next }
             $0 == e { skip = 0; next }
             !skip   { print }
-        ' "$file" >"$tmp"
+        ' "$file" >"$tmp" || return
         # Trim trailing blank lines the strip may have left behind.
         while [[ -s "$tmp" && -z "$(tail -n 1 "$tmp")" ]]; do
-            sed -i '$d' "$tmp"
+            sed -i '$d' "$tmp" || return
         done
         # Keep exactly one trailing newline before appending the block.
         if [[ -s "$tmp" ]]; then
-            printf '\n' >>"$tmp"
+            printf '\n' >>"$tmp" || return
         fi
     fi
 
-    printf '%s\n' "$begin" >>"$tmp"
+    printf '%s\n' "$begin" >>"$tmp" || return
     for line in "$@"; do
-        printf '%s\n' "$line" >>"$tmp"
+        printf '%s\n' "$line" >>"$tmp" || return
     done
-    printf '%s\n' "$end" >>"$tmp"
+    printf '%s\n' "$end" >>"$tmp" || return
 
-    _edit_apply "$tmp" "$file"
+    _edit_apply "$tmp" "$file" || return
     rm -f -- "$tmp"
 }
 
@@ -110,7 +110,7 @@ include_block() {
 ini_set() {
     local file="$1" section="$2" key="$3" value="$4"
     local tmp
-    tmp="$(mktemp)"
+    tmp="$(mktemp)" || return
 
     if [[ -f "$file" ]]; then
         awk -v section="$section" -v key="$key" -v value="$value" '
@@ -140,12 +140,12 @@ ini_set() {
                     printf "%s=%s\n", key, value
                 }
             }
-        ' "$file" >"$tmp"
+        ' "$file" >"$tmp" || return
     else
-        printf '[%s]\n%s=%s\n' "$section" "$key" "$value" >"$tmp"
+        printf '[%s]\n%s=%s\n' "$section" "$key" "$value" >"$tmp" || return
     fi
 
-    _edit_apply "$tmp" "$file"
+    _edit_apply "$tmp" "$file" || return
     rm -f -- "$tmp"
 }
 
@@ -155,14 +155,14 @@ ini_remove() {
     local file="$1" section="$2" key="$3"
     local tmp
     [[ -f "$file" ]] || return 0
-    tmp="$(mktemp)"
+    tmp="$(mktemp)" || return
     awk -v section="$section" -v key="$key" '
         /^\[/ { if (buf != "" && !seen) print "";  buf=""; in_section = ($0 == "[" section "]"); print; next }
         {
             if (in_section && $0 ~ "^[ \t]*" key "[ \t]*=") { next }
             print
         }
-    ' "$file" >"$tmp"
-    _edit_apply "$tmp" "$file"
+    ' "$file" >"$tmp" || return
+    _edit_apply "$tmp" "$file" || return
     rm -f -- "$tmp"
 }

@@ -145,17 +145,25 @@ expand_requirements() {
 }
 
 apply_selection() {
-    local selection="$1" id file applied=() failed=()
+    local selection="$1" id file module_status applied=() failed=()
     for id in $selection; do
         file="$(module_file "$id")" || die "unknown module: $id"
         export SWAY98_MODULE="$id"
         step "module: $id"
-        if ( # shellcheck disable=SC1090
+        # A subshell used as an `if` condition disables errexit throughout the
+        # module. Temporarily let the parent collect the status, while the
+        # foreground child runs with errexit in a non-conditional context.
+        set +e
+        ( # shellcheck disable=SC1090
+            set -e
             . "$file"
             sway98_apply
-        ); then
-            applied+=("$id")
             record_module "$id" installed
+        )
+        module_status=$?
+        set -e
+        if ((module_status == 0)); then
+            applied+=("$id")
         else
             warn "module '$id' did not complete; its changes stay reverted-able via ./uninstall.sh"
             failed+=("$id")
@@ -226,4 +234,6 @@ main() {
     apply_selection "$selection"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

@@ -5,9 +5,9 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-real check-presets install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-errors check-real check-presets install-hooks
 
-check: check-syntax check-shellcheck check-dryrun check-roundtrip check-presets
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-errors check-presets
 
 check-presets:
 	@bash tests/module-presets.sh
@@ -34,6 +34,10 @@ check-dryrun:
 # pristine copy of it. Any difference is a bug in the transaction layer.
 check-roundtrip:
 	@tests/run-sandbox.sh roundtrip
+
+# Transaction failures must propagate even when callers test helper statuses.
+check-errors:
+	@bash tests/run-errors.sh
 
 clean:
 	rm -rf tests/sandbox
