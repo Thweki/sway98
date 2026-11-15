@@ -25,7 +25,11 @@ template_render() {
     for pair in "$@"; do
         key="${pair%%=*}"
         value="${pair#*=}"
-        sed -i "s|@${key}@|${value//|/\\|}|g" "$tmp"
+        # Paths such as a custom configuration root are literal replacements.
+        value="${value//\\/\\\\}"
+        value="${value//&/\\&}"
+        value="${value//|/\\|}"
+        sed -i "s|@${key}@|${value}|g" "$tmp"
     done
     _edit_apply "$tmp" "$dest"
     rm -f -- "$tmp"

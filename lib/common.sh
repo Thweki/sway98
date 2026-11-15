@@ -70,6 +70,10 @@ die() { err "$@"; exit 1; }
 is_dry_run() { [[ "$SWAY98_DRY_RUN" == "1" ]]; }
 
 # --- small helpers ------------------------------------------------------------
+# All configuration destinations and references must use the same root. Empty
+# XDG_CONFIG_HOME has the same fallback as an unset value.
+sway98_config_home() { printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
+
 have() { command -v -- "$1" >/dev/null 2>&1; }
 
 require_cmd() {

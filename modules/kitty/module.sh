@@ -12,7 +12,7 @@ SWAY98_MODULE_REQUIRES=""
 SWAY98_MODULE_NEEDS_PKGS="kitty"
 
 sway98_apply() {
-    local dir="$HOME/.config/kitty"
+    local dir="$(sway98_config_home)/kitty"
 
     install_file "$SWAY98_ROOT/modules/kitty/files/vga-palette.conf" "$dir/sway98-vga.conf"
 

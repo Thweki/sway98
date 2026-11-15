@@ -5,9 +5,9 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-shellcheck check-dryrun check-roundtrip check-config-roots check-real install-hooks
 
-check: check-shellcheck check-dryrun check-roundtrip
+check: check-shellcheck check-dryrun check-roundtrip check-config-roots
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
@@ -27,6 +27,11 @@ check-dryrun:
 # pristine copy of it. Any difference is a bug in the transaction layer.
 check-roundtrip:
 	@tests/run-sandbox.sh roundtrip
+
+# Verify configuration destinations and includes with unset, empty and custom
+# XDG_CONFIG_HOME, including reinstall and rollback without desktop access.
+check-config-roots:
+	@bash tests/run-config-roots.sh
 
 clean:
 	rm -rf tests/sandbox

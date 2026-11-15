@@ -24,7 +24,7 @@ sway98_apply() {
 
     local version file
     for version in 3.0 4.0; do
-        file="$HOME/.config/gtk-$version/settings.ini"
+        file="$(sway98_config_home)/gtk-$version/settings.ini"
         ini_set "$file" "Settings" "gtk-theme-name" "Chicago95"
         ini_set "$file" "Settings" "gtk-icon-theme-name" "Chicago95"
         ini_set "$file" "Settings" "gtk-cursor-theme-name" "$cursor"

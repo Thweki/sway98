@@ -38,7 +38,7 @@ sway98_apply() {
     # Under sway, fcitx5 needs both the D-Bus activation environment and its own
     # daemon started once; without this, X11 apps in particular never see it.
     install_file "$SWAY98_ROOT/modules/fcitx5/files/sway-fragment.conf" \
-        "$HOME/.config/sway/conf.d/sway98.d/fcitx5.conf"
+        "$(sway98_config_home)/sway/conf.d/sway98.d/fcitx5.conf"
 
     if pgrep -x fcitx5 >/dev/null 2>&1; then
         info "restart the input method to see the new panel: fcitx5 -r -d --replace"
@@ -51,7 +51,7 @@ sway98_apply() {
 # cannot express. Rewrite it line by line instead, preserving unknown keys.
 _fcitx5_set_key() {
     local key="$1" value="$2"
-    local file="$HOME/.config/fcitx5/conf/classicui.conf"
+    local file="$(sway98_config_home)/fcitx5/conf/classicui.conf"
     local tmp; tmp="$(mktemp)"
 
     if [[ -f "$file" ]]; then

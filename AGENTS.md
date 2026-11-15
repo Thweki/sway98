@@ -60,7 +60,8 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 - `sway98_apply` 在 **子 shell** 中执行（`( source module.sh; sway98_apply )`），因此模块可以随意定义局部函数/变量，不会污染主进程。
 - 一切文件写入必须走 `install_file` / `install_dir` / `ini_set` / `include_block`——**它们才会写 manifest**。手写 `cp`/`sed -i` 到用户目录属严重违规（无法回滚）。
 - 需要执行的外部命令（`gsettings`、`flatpak override`、`fc-cache`）用 `record_cmd "<幂等的反向命令>"` 记录回滚命令。
-- 需要 sway 运行时生效的（`exec waybar`、开机音）写到 `~/.config/sway/conf.d/sway98.d/<id>.conf`，由 sway98 主片段通配 `include`。
+- 所有配置路径通过 `sway98_config_home` 解析：`${XDG_CONFIG_HOME:-$HOME/.config}`（空值也回退）。配置文件、探测与生成的 include 必须使用同一个根目录，不能硬编码 `$HOME/.config`。
+- 需要 sway 运行时生效的（`exec waybar`、开机音）写到 `$(sway98_config_home)/sway/conf.d/sway98.d/<id>.conf`，由 sway98 主片段通配 `include`。
 - 缺依赖时 `warn` + `return 0`（跳过该模块并计入摘要），**不要**擅自 `pacman -S`。
 
 ---
@@ -73,6 +74,7 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `die <msg>` | 报错退出 |
 | `confirm <prompt>` | 交互确认（`--no-prompt` 下自动 yes） |
 | `is_dry_run` | 全局 `--dry-run`：所有写操作只打印不执行 |
+| `sway98_config_home` | 输出 `${XDG_CONFIG_HOME:-$HOME/.config}`，统一配置写入、探测与 include 的根目录 |
 | `backup_path <path>` | 复制到 `$STATE/backups/<ts>/...` 并返回路径 |
 | `install_file <src> <dest>` | 备份→写入→记 manifest（create/modify） |
 | `install_dir <src-dir> <dest-dir>` | 逐文件 install_file + 记录目录创建 |
@@ -91,7 +93,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ## 5. 安全与可回滚（不可协商）
 
 1. **默认 dry-run 安全**：所有写路径先过 `is_dry_run`，`--dry-run` 必须零副作用（不建目录、不写 manifest）。
-2. **只碰表内路径**：`$HOME` 下的配置文件，或 `SCOPE=system` 模块明确声明的 `/usr/...`、`/etc/...`。禁止 `rm -rf` 无 `--` 保护的路径，禁止通配删除。
+2. **只碰表内路径**：`$HOME` 下的配置文件、用户通过 `XDG_CONFIG_HOME` 指定的配置根目录，或 `SCOPE=system` 模块明确声明的 `/usr/...`、`/etc/...`。禁止 `rm -rf` 无 `--` 保护的路径，禁止通配删除。
 3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm` 后才覆盖，否则跳过并在摘要里说明。
 4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。任何"装了但卸不掉"的改动视为 bug。
 5. **系统级模块**（保留给后续里程碑的 `sddm`/`plymouth`）：必须 `--system` 显式开启，README/PLAN 里标注变砖风险。
@@ -133,7 +135,8 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./install.sh --modules theme,gtk,sway   # 非交互
 ./uninstall.sh                          # 按 manifest 全量回滚
 
-make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+make check                              # shellcheck + 干跑 + 沙箱往返 + 配置根目录往返（发布前必跑）
+make check-config-roots                 # 默认（未设置/空值）及自定义配置根目录的安装→重装→卸载
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原

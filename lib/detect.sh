@@ -40,7 +40,7 @@ detect_session_type() {
 is_running_sway() { [[ -n "${SWAYSOCK:-}" ]]; }
 
 sway_config_file() {
-    printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/sway/config"
+    printf '%s\n' "$(sway98_config_home)/sway/config"
 }
 
 # There is deliberately no output/resolution detection: every module writes
