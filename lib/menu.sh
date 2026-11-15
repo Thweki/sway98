@@ -86,18 +86,35 @@ module_recommended() {
     done < <(modules_table)
 }
 
+# Normalize a decimal menu index before arithmetic. Check its length first so
+# oversized input cannot overflow into a valid index or an unbounded range.
+_sway98_selection_index() {
+    local index="$1" count="$2"
+    index="${index#"${index%%[!0]*}"}"
+    if [[ -z "$index" || ${#index} -gt ${#count} ]]; then
+        die "module number out of range: $1 (expected 1-$count)"
+    fi
+    (( index >= 1 && index <= count )) \
+        || die "module number out of range: $1 (expected 1-$count)"
+    printf '%s\n' "$index"
+}
+
 # _expand_selection "theme,gtk,sway" -> one id per line
 _expand_selection() {
-    local raw="$1" token i
+    local raw="$1" token i first last
     local -a ids=()
     while IFS= read -r i; do ids+=("$i"); done < <(module_defaults)
     for token in ${raw//,/ }; do
         if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-            for (( i = BASH_REMATCH[1]; i <= BASH_REMATCH[2]; i++ )); do
-                ((${#ids[@]} >= i)) && printf '%s\n' "${ids[i-1]}"
+            first="$(_sway98_selection_index "${BASH_REMATCH[1]}" "${#ids[@]}")" || return
+            last="$(_sway98_selection_index "${BASH_REMATCH[2]}" "${#ids[@]}")" || return
+            (( first <= last )) || die "module range is reversed: $token"
+            for (( i = first; i <= last; i++ )); do
+                printf '%s\n' "${ids[i-1]}"
             done
         elif [[ "$token" =~ ^[0-9]+$ ]]; then
-            ((${#ids[@]} >= token)) && printf '%s\n' "${ids[token-1]}"
+            i="$(_sway98_selection_index "$token" "${#ids[@]}")" || return
+            printf '%s\n' "${ids[i-1]}"
         else
             printf '%s\n' "$token"
         fi
