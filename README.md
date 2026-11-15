@@ -63,6 +63,14 @@ Every module is optional. Nothing is preselected: you choose, module by module.
   writes nothing at all — not even the manifest.
 * **Idempotent.** Running the installer again only writes what actually differs.
 
+Configuration files use `${XDG_CONFIG_HOME:-$HOME/.config}` throughout, including
+Sway's main config, module fragments and generated includes. An unset or empty
+`XDG_CONFIG_HOME` uses `~/.config`; a custom root may be outside `$HOME`. The paths
+shown here use the default root. Use the same `XDG_STATE_HOME` when uninstalling
+so the installer can find its manifest; rollback uses the recorded file paths.
+Legacy locations such as `~/.profile`, `~/.themes`, `~/.icons` and Firefox profile
+directories keep their existing locations.
+
 ## Microsoft assets
 
 The repository contains **no** Microsoft artwork, sounds or fonts — only the
@@ -137,14 +145,17 @@ Everything is Bash; there is no build step, and the installer's only runtime
 dependencies are `curl`, `git` and coreutils.
 
 ```
-make check              # shellcheck, dry run, install/uninstall roundtrip
+make check              # shellcheck, dry run, sandbox and config-root roundtrips
+make check-config-roots # unset, empty and custom XDG_CONFIG_HOME; no downloads
 make check-real         # the same against a real Chicago95 checkout
 tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```
 
 `make check` needs `shellcheck` (`pacman -S shellcheck` / `apt install shellcheck`).
-Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
-the machine running them is modified — including the screenshot generator, which
+Tests use throwaway homes: the sandbox harness uses `tests/sandbox/`, while
+configuration-root tests use a temporary directory and cover ten modules with
+local fixtures, including Qt palettes and cached sound placeholders. No desktop
+session or downloads are needed for those roundtrips. The screenshot generator
 renders a private headless sway session instead of photographing your own desktop.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and

@@ -65,11 +65,11 @@ sway98_apply() {
     if [[ -n "$player" && "$have_sound" == "1" ]]; then
         if [[ "$player" == "canberra-gtk-play" ]]; then
             template_render "$SWAY98_ROOT/modules/sounds/files/sway-fragment.conf.in" \
-                "$HOME/.config/sway/conf.d/sway98.d/sounds.conf" \
+                "$(sway98_config_home)/sway/conf.d/sway98.d/sounds.conf" \
                 "LOGIN_CMD=canberra-gtk-play -i desktop-login"
         else
             template_render "$SWAY98_ROOT/modules/sounds/files/sway-fragment.conf.in" \
-                "$HOME/.config/sway/conf.d/sway98.d/sounds.conf" \
+                "$(sway98_config_home)/sway/conf.d/sway98.d/sounds.conf" \
                 "LOGIN_CMD=$player $theme_dir/stereo/desktop-login.wav"
         fi
     else

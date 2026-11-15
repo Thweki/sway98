@@ -12,7 +12,7 @@ SWAY98_MODULE_REQUIRES="theme"
 SWAY98_MODULE_NEEDS_PKGS="sway"
 
 sway98_apply() {
-    local confdir="$HOME/.config/sway/conf.d"
+    local confdir="$(sway98_config_home)/sway/conf.d"
     local main; main="$(sway_config_file)"
     local font
 
@@ -20,19 +20,19 @@ sway98_apply() {
     info "sway decoration font: $font"
 
     template_render "$SWAY98_ROOT/modules/sway/files/sway98.conf" \
-        "$confdir/sway98.conf" "FONT=$font"
+        "$confdir/sway98.conf" "FONT=$font" "FRAGMENT_DIR=$confdir/sway98.d"
 
     # Keep the fragment directory present so the glob include always matches.
     install_file "$SWAY98_ROOT/modules/sway/files/00-README.conf" \
         "$confdir/sway98.d/00-README.conf"
 
     if [[ -f "$main" ]]; then
-        include_block "$main" "sway98" "include $confdir/sway98.conf"
+        include_block "$main" "sway98" "include \"$confdir/sway98.conf\""
     else
         warn "no sway config at $main yet"
         warn "after starting sway once, re-run: ./install.sh --only sway"
         warn "or add this line to the end of your sway config:"
-        printf '    include %s/sway98.conf\n' "$confdir" >&2
+        printf '    include "%s/sway98.conf"\n' "$confdir" >&2
     fi
 
     if is_running_sway; then

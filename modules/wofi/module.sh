@@ -12,6 +12,6 @@ SWAY98_MODULE_REQUIRES=""
 SWAY98_MODULE_NEEDS_PKGS="wofi"
 
 sway98_apply() {
-    install_file "$SWAY98_ROOT/modules/wofi/files/style.css" "$HOME/.config/wofi/style.css"
+    install_file "$SWAY98_ROOT/modules/wofi/files/style.css" "$(sway98_config_home)/wofi/style.css"
     info "open the launcher to see it (normally Mod+d)"
 }

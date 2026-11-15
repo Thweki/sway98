@@ -12,7 +12,7 @@ SWAY98_MODULE_REQUIRES=""
 SWAY98_MODULE_NEEDS_PKGS="swaylock"
 
 sway98_apply() {
-    install_file "$SWAY98_ROOT/modules/swaylock/files/config" "$HOME/.config/swaylock/config"
+    install_file "$SWAY98_ROOT/modules/swaylock/files/config" "$(sway98_config_home)/swaylock/config"
     info "lock your screen to see it: swaylock -f"
     info "no key binding is created on purpose; add one yourself, e.g."
     info "  bindsym \$mod+Escape exec swaylock -f"

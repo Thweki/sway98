@@ -22,13 +22,13 @@ SWAY98_MODULE_NEEDS_PKGS="qt5-base qt6-base gtk3"
 
 sway98_apply() {
     install_file "$SWAY98_ROOT/modules/qt/files/environment.d.conf" \
-        "$HOME/.config/environment.d/90-sway98-qt.conf"
+        "$(sway98_config_home)/environment.d/90-sway98-qt.conf"
 
     # Colour scheme for people who already run qt5ct/qt6ct: upstream ships one
     # that matches the GTK theme exactly.
     local version dir
     for version in 5 6; do
-        dir="$HOME/.config/qt${version}ct"
+        dir="$(sway98_config_home)/qt${version}ct"
         if [[ -d "$dir" ]]; then
             if [[ -f "$SWAY98_THEME_SRC/Extras/Chicago95_qt.conf" ]]; then
                 install_file "$SWAY98_THEME_SRC/Extras/Chicago95_qt.conf" "$dir/colors/sway98.conf"

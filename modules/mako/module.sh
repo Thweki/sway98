@@ -12,9 +12,9 @@ SWAY98_MODULE_REQUIRES="sway"
 SWAY98_MODULE_NEEDS_PKGS="mako"
 
 sway98_apply() {
-    install_file "$SWAY98_ROOT/modules/mako/files/config" "$HOME/.config/mako/config"
+    install_file "$SWAY98_ROOT/modules/mako/files/config" "$(sway98_config_home)/mako/config"
     install_file "$SWAY98_ROOT/modules/mako/files/sway-fragment.conf" \
-        "$HOME/.config/sway/conf.d/sway98.d/mako.conf"
+        "$(sway98_config_home)/sway/conf.d/sway98.d/mako.conf"
 
     if is_running_sway && ! pgrep -x mako >/dev/null 2>&1; then
         info "start it now with: swaymsg exec mako"

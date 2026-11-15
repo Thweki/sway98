@@ -12,14 +12,14 @@ SWAY98_MODULE_REQUIRES="sway"
 SWAY98_MODULE_NEEDS_PKGS="waybar ttf-jetbrains-mono-nerd"
 
 sway98_apply() {
-    local cfg="$HOME/.config/waybar"
+    local cfg="$(sway98_config_home)/waybar"
 
     install_file "$SWAY98_ROOT/modules/waybar/files/config" "$cfg/config"
     install_file "$SWAY98_ROOT/modules/waybar/files/style.css" "$cfg/style.css"
 
     # Start it with the session. The fragment is picked up by sway98.conf.
     install_file "$SWAY98_ROOT/modules/waybar/files/sway-fragment.conf" \
-        "$HOME/.config/sway/conf.d/sway98.d/waybar.conf"
+        "$(sway98_config_home)/sway/conf.d/sway98.d/waybar.conf"
 
     if ! has_font "JetBrainsMono Nerd Font"; then
         warn "no Nerd Font installed: the taskbar icons will render as boxes"

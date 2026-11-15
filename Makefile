@@ -5,9 +5,9 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+.PHONY: check check-syntax check-shellcheck check-dryrun check-roundtrip check-config-roots check-real install-hooks
 
-check: check-syntax check-shellcheck check-dryrun check-roundtrip
+check: check-syntax check-shellcheck check-dryrun check-roundtrip check-config-roots
 
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
@@ -31,6 +31,11 @@ check-dryrun:
 # pristine copy of it. Any difference is a bug in the transaction layer.
 check-roundtrip:
 	@tests/run-sandbox.sh roundtrip
+
+# Verify configuration destinations and includes with unset, empty and custom
+# XDG_CONFIG_HOME, including reinstall and rollback without desktop access.
+check-config-roots:
+	@bash tests/run-config-roots.sh
 
 clean:
 	rm -rf tests/sandbox
