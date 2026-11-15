@@ -5,9 +5,16 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+# The sandbox checks delete and recreate the same tests/sandbox tree. Keep
+# recipes serial even with -j or inherited MAKEFLAGS, including explicit goals.
+.NOTPARALLEL:
 
-check: check-shellcheck check-dryrun check-roundtrip
+.PHONY: check check-make check-shellcheck check-dryrun check-roundtrip check-real install-hooks
+
+check: check-make check-shellcheck check-dryrun check-roundtrip
+
+check-make:
+	@bash tests/check-make.sh
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
