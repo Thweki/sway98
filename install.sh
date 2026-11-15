@@ -24,6 +24,7 @@ export SWAY98_ROOT
 
 SELECTION=""
 MODE=""
+SWAY98_PLAN=0
 
 usage() {
     cat <<EOF
@@ -39,6 +40,7 @@ Selection
       --system           also offer modules that change system paths (needs sudo)
 
 Behaviour
+      --plan             summarize selected modules and requirements, then exit
   -n, --dry-run          print every change without touching anything
   -y, --yes              assume yes for all prompts
       --verbose          log every helper call
@@ -46,6 +48,7 @@ Behaviour
 
 Examples
   ./install.sh --list
+  ./install.sh --plan --recommended
   ./install.sh --dry-run --all
   ./install.sh --modules theme,gtk,sway,waybar,kitty
 EOF
@@ -60,6 +63,7 @@ parse_args() {
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; shift ;;
             -n|--dry-run)   export SWAY98_DRY_RUN=1; shift ;;
+            --plan)         SWAY98_PLAN=1; shift ;;
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
             --verbose)      export SWAY98_VERBOSE=1; shift ;;
@@ -177,8 +181,35 @@ apply_selection() {
     fi
 }
 
+sway98_print_plan() {
+    local requested="$1" selection="$2" id requirement
+    printf 'Installation plan (module summary, not a file diff)\n'
+    printf 'Dependency prompts are assumed accepted; installation may still skip unavailable modules.\n'
+    for id in $selection; do
+        printf '\n%s [%s]' "$id" "$(module_field "$id" scope)"
+        if [[ " $requested " != *" $id "* ]]; then
+            printf ' (added dependency)'
+        fi
+        printf '\n  Changes: %s\n' "$(module_field "$id" desc)"
+        printf '  Packages (not checked or installed): %s\n' "$(module_field "$id" pkgs)"
+        for requirement in $(module_field "$id" requires); do
+            if [[ " $selection " == *" $requirement "* ]]; then
+                printf '  Requires: %s (selected)\n' "$requirement"
+            else
+                printf '  Requires: %s (not selected)\n' "$requirement"
+            fi
+        done
+    done
+    printf '\nNo modules applied, downloads performed, or installation state written.\n'
+}
+
 main() {
     parse_args "$@"
+
+    if [[ "$SWAY98_PLAN" == "1" ]]; then
+        # Use the dry-run dependency decisions, but never execute module bodies.
+        export SWAY98_DRY_RUN=1 SWAY98_LOG=""
+    fi
 
     case "${MODE:-}" in
         list) list_modules; exit 0 ;;
@@ -190,10 +221,12 @@ main() {
     fi
 
     step "$SWAY98_NAME $SWAY98_VERSION"
-    preflight
-    manifest_init
+    if [[ "$SWAY98_PLAN" != "1" ]]; then
+        preflight
+        manifest_init
+    fi
 
-    local selection=""
+    local selection="" requested=""
     case "${MODE:-}" in
         all)         selection="$(module_defaults | tr '\n' ' ')" ;;
         recommended) selection="$(module_recommended | tr '\n' ' ')" ;;
@@ -211,7 +244,13 @@ main() {
 
     selection="$(tr ' ' '\n' <<<"$selection" | sed '/^$/d' | awk '!seen[$0]++' | tr '\n' ' ')"
     validate_selection "$selection"
+    requested="$selection"
     selection="$(expand_requirements "$selection" | tr '\n' ' ')"
+
+    if [[ "$SWAY98_PLAN" == "1" ]]; then
+        sway98_print_plan "$requested" "$selection"
+        return 0
+    fi
 
     printf '\n' >&2
     report_missing_pkgs "$selection"

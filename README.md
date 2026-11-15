@@ -104,6 +104,7 @@ module picker, `grim`/`slurp` for screenshots.
 
 ```
 ./install.sh --list                  list modules and exit
+./install.sh --plan --recommended    summarize a proposed installation
 ./install.sh --dry-run --all         full rehearsal, zero side effects
 ./install.sh --modules theme,gtk,sway
 ./install.sh --recommended           the set that gives you the look fastest
@@ -111,6 +112,14 @@ module picker, `grim`/`slurp` for screenshots.
 ./uninstall.sh --dry-run             see the rollback first
 ./uninstall.sh --only firefox        roll back one module
 ```
+
+`--plan` works with the same module selections as installation, including the
+interactive picker. It shows each selected module's intended changes, scope,
+declared Arch packages, and dependencies. Like `--dry-run`, it assumes dependency
+prompts are accepted and labels added modules. It does not run module apply
+functions, check installed packages, download assets, or write logs or manifests.
+The summary is based on module metadata, not an exact file diff or a guarantee
+that every module can run; actual installation can skip unavailable components.
 
 ## Honest limitations
 
