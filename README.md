@@ -54,7 +54,11 @@ Every module is optional. Nothing is preselected: you choose, module by module.
 * **Manifest.** Every file it touches is recorded in
   `~/.local/state/sway98/manifest/` with its old hash and a copy of the old
   contents. `./uninstall.sh` replays that in reverse: commands, files, then the
-  directories that were created and left empty.
+  directories that were created and left empty. Successful records are archived;
+  failed commands, missing backups, and other rollback failures stay active and
+  make uninstall exit nonzero. Fix the reported problem and run uninstall again
+  to retry. `--only MODULE` consumes that module's successful records and keeps
+  other modules and unresolved records active.
 * **No clobbering.** Existing configuration is never overwritten silently. The
   sway window colours go into `~/.config/sway/conf.d/sway98.conf`, which is added
   to your config as a marker-delimited `include` block (`# >>> sway98 >>>`), so
@@ -137,7 +141,7 @@ Everything is Bash; there is no build step, and the installer's only runtime
 dependencies are `curl`, `git` and coreutils.
 
 ```
-make check              # shellcheck, dry run, install/uninstall roundtrip
+make check              # shellcheck, dry run, roundtrip, rollback failure/retry tests
 make check-real         # the same against a real Chicago95 checkout
 tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```

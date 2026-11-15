@@ -7,7 +7,7 @@
 # install_dir() or record_cmd(). Those are the only functions that write to the
 # manifest, and the manifest is the only source of truth for uninstall.sh.
 #
-# Manifest layout (TSV, append only):
+# Manifest layout (TSV, appended during install, consumed during rollback):
 #   manifest/files.tsv     module  action  path  sha_new  sha_old  backup
 #   manifest/commands.tsv  module  revert_command
 #   manifest/dirs.tsv      module  path
@@ -293,33 +293,75 @@ _manifest_record_created_dirs() {
 
 # --- uninstall engine ---------------------------------------------------------
 
+manifest_has_records() {
+    local only="${1:-}" kind source_file
+    for kind in files commands dirs modules; do
+        source_file="$(manifest_dir)/$kind.tsv"
+        [[ -s "$source_file" ]] || continue
+        [[ -n "$only" ]] || return 0
+        if awk -F'\t' -v only="$only" '$1 == only { found = 1; exit } END { exit !found }' "$source_file"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Partition a manifest using successful row numbers (key=0) or paths (key=3).
+# The original stays active until all partitions have been prepared.
+_manifest_partition() {
+    local kind="$1" key="$2" work="$3" only="${4:-}" source_file
+    source_file="$(manifest_dir)/$kind.tsv"
+    : >"$work/$kind.keep" || return 1
+    : >"$work/$kind.done" || return 1
+    [[ -f "$source_file" ]] || return 0
+    awk -F'\t' -v key="$key" -v only="$only" -v keep="$work/$kind.keep" -v done="$work/$kind.done" '
+        FILENAME == ARGV[1] { success[$0] = 1; next }
+        {
+            record_key = (key == 0 ? FNR : $key)
+            if ((only == "" || $1 == only) && record_key in success) print >done
+            else print >keep
+        }
+    ' "$work/$kind.success" "$source_file"
+}
+
 # restore_all [module-filter] — reverse order: commands, files, directories.
+# Successful records are consumed even if another rollback fails. Failed rows
+# and module metadata with outstanding work remain active for an ordinary retry.
 restore_all() {
-    local only="${1:-}" mod cmd action path sha_new sha_old backup count=0
+    local only="${1:-}" mod cmd action path sha_new sha_old backup row row_id
+    local failures=0 count=0 work="" kind hist
+    local -a created_paths=()
+
+    if ! is_dry_run; then
+        work="$(mktemp -d "$(manifest_dir)/.rollback.XXXXXX")" || return 1
+        for kind in commands files dirs; do
+            : >"$work/$kind.success" || return 1
+        done
+    fi
 
     if [[ -s "$(manifest_commands)" ]]; then
         step "Reverting recorded commands"
-        while IFS=$'\t' read -r mod cmd; do
-            [[ -n "${cmd:-}" ]] || continue
+        while IFS=$'\t' read -r row_id mod cmd; do
             [[ -n "$only" && "$mod" != "$only" ]] && continue
             if is_dry_run; then
                 dry "revert command [$mod]: $cmd"
+            elif [[ -n "$cmd" ]] && ( eval "$cmd" ); then
+                printf '%s\n' "$row_id" >>"$work/commands.success" || return 1
             else
-                info "revert [$mod]: $cmd"
-                eval "$cmd" || warn "revert command failed, continuing: $cmd"
+                warn "revert command failed [$mod]: $cmd"
+                failures=$((failures + 1))
             fi
-        done < <(tac "$(manifest_commands)")
+        done < <(awk '{ print NR "\t" $0 }' "$(manifest_commands)" | tac)
     fi
 
     if [[ -s "$(manifest_files)" ]]; then
         step "Restoring files"
-        # First record per path wins (it holds the user's original), then the
-        # order of first appearances is reversed. Created files are deleted in
-        # one batched rm; modified files are restored from their backup.
-        local -a created_paths=()
-        while IFS=$'\t' read -r mod action path sha_new sha_old backup; do
-            [[ -n "${path:-}" ]] || continue
-            [[ -n "$only" && "$mod" != "$only" ]] && continue
+        # Re-install rows for the same selected path share its original backup.
+        # Consume them together only after the path has been reverted.
+        while IFS= read -r row; do
+            # A non-whitespace delimiter preserves empty TSV columns (symlinks
+            # have no hashes, but may still have a backup in the last column).
+            IFS=$'\x1f' read -r mod action path sha_new sha_old backup <<<"${row//$'\t'/$'\x1f'}"
             case "$action" in
                 create)
                     if is_dry_run; then
@@ -327,47 +369,96 @@ restore_all() {
                     else
                         created_paths+=("$path")
                     fi
+                    continue
                     ;;
                 modify)
-                    if [[ -z "$backup" || ! -e "$backup" ]]; then
+                    if [[ -z "$backup" || ( ! -e "$backup" && ! -L "$backup" ) ]]; then
                         warn "no backup for $path, leaving as is"
-                        continue
-                    fi
-                    if is_dry_run; then
+                    elif is_dry_run; then
                         dry "restore $path from ${backup#"$SWAY98_STATE"/}"
+                        continue
+                    elif cp -a -- "$backup" "$path"; then
+                        info "restored: $path"
+                        printf '%s\n' "$path" >>"$work/files.success" || return 1
+                        count=$((count + 1))
+                        continue
                     else
-                        cp -a -- "$backup" "$path" && info "restored: $path"
+                        warn "restore failed for $path"
                     fi
                     ;;
-                *)
-                    warn "unknown manifest action '$action' for $path"
-                    ;;
+                *) warn "unknown manifest action '$action' for $path" ;;
             esac
-            count=$((count + 1))
-        done < <(awk -F'\t' '!seen[$3]++ {print}' "$(manifest_files)" | tac)
+            failures=$((failures + 1))
+        done < <(awk -F'\t' -v only="$only" '
+            (only == "" || $1 == only) && !seen[$3]++ {print}
+        ' "$(manifest_files)" | tac)
 
         if ((${#created_paths[@]})); then
-            printf '%s\0' "${created_paths[@]}" | xargs -0 -r rm -f --
-            info "removed ${#created_paths[@]} created file(s)"
+            # rm can partially succeed. Check each path before consuming its
+            # rows so that a failed batch never loses retry information.
+            if ! printf '%s\0' "${created_paths[@]}" | xargs -0 -r rm -f --; then
+                warn "some created files could not be removed"
+            fi
+            for path in "${created_paths[@]}"; do
+                if [[ ! -e "$path" && ! -L "$path" ]]; then
+                    printf '%s\n' "$path" >>"$work/files.success" || return 1
+                    count=$((count + 1))
+                else
+                    warn "could not remove $path"
+                    failures=$((failures + 1))
+                fi
+            done
         fi
-        ok "$count file(s) processed"
+        info "$count file(s) reverted"
     fi
 
     if [[ -s "$(manifest_dirs)" ]]; then
         step "Removing directories created by $SWAY98_NAME"
-        while IFS=$'\t' read -r mod path; do
-            [[ -n "${path:-}" ]] || continue
+        while IFS=$'\t' read -r row_id mod path; do
             [[ -n "$only" && "$mod" != "$only" ]] && continue
             if is_dry_run; then
                 dry "rmdir $path"
-            elif [[ -d "$path" ]]; then
-                if rmdir --ignore-fail-on-non-empty -- "$path" 2>/dev/null; then
-                    info "removed empty dir: $path"
-                fi
+            elif [[ ! -e "$path" && ! -L "$path" ]] || rmdir -- "$path"; then
+                printf '%s\n' "$row_id" >>"$work/dirs.success" || return 1
+            else
+                warn "could not remove directory $path; keeping its record for retry"
+                failures=$((failures + 1))
             fi
-        done < <(tac "$(manifest_dirs)")
+        done < <(awk '{ print NR "\t" $0 }' "$(manifest_dirs)" | tac)
+    fi
+
+    if ! is_dry_run; then
+        _manifest_partition commands 0 "$work" || return 1
+        _manifest_partition files 3 "$work" "$only" || return 1
+        _manifest_partition dirs 0 "$work" || return 1
+        : >"$work/modules.keep" || return 1
+        : >"$work/modules.done" || return 1
+        if [[ -f "$(manifest_modules)" ]]; then
+            awk -F'\t' -v only="$only" -v keep="$work/modules.keep" -v done="$work/modules.done" '
+                FILENAME != ARGV[4] { pending[$1] = 1; next }
+                { if ((only == "" || $1 == only) && !($1 in pending)) print >done; else print >keep }
+            ' "$work/commands.keep" "$work/files.keep" "$work/dirs.keep" "$(manifest_modules)" || return 1
+        fi
+        # A unique history directory prevents retries in the same second from
+        # replacing an earlier archive. Only consumed rows belong in history.
+        for kind in commands files dirs modules; do
+            if [[ -s "$work/$kind.done" ]]; then
+                if [[ -z "${hist:-}" ]]; then
+                    mkdir -p -- "$(manifest_dir)/history" || return 1
+                    hist="$(mktemp -d "$(manifest_dir)/history/$SWAY98_TS-XXXXXX")" || return 1
+                fi
+                cp -- "$work/$kind.done" "$hist/$kind.tsv" || return 1
+            fi
+        done
+        for kind in commands files dirs modules; do
+            mv -- "$work/$kind.keep" "$(manifest_dir)/$kind.tsv" || return 1
+        done
+        rm -r -- "$work" || return 1
+        [[ -z "${hist:-}" ]] || info "reverted records archived to $hist"
+    fi
+
+    if ((failures)); then
+        err "$failures rollback operation(s) failed; unresolved records remain active. Run uninstall again to retry."
+        return 1
     fi
 }
-
-# Flow rewritten in install.sh / uninstall.sh: the directory list may contain
-# duplicates after re-installs; harmless because rmdir only removes empty dirs.

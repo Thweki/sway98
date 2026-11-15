@@ -93,7 +93,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 1. **默认 dry-run 安全**：所有写路径先过 `is_dry_run`，`--dry-run` 必须零副作用（不建目录、不写 manifest）。
 2. **只碰表内路径**：`$HOME` 下的配置文件，或 `SCOPE=system` 模块明确声明的 `/usr/...`、`/etc/...`。禁止 `rm -rf` 无 `--` 保护的路径，禁止通配删除。
 3. **接管已有文件必须先问**：目标已存在且不属于本项目 → `confirm` 后才覆盖，否则跳过并在摘要里说明。
-4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。任何"装了但卸不掉"的改动视为 bug。
+4. **卸载必须完整**：`uninstall.sh` 依据 manifest 逆序执行命令、恢复备份、删除新建文件与空目录。回滚失败必须返回非零，失败记录继续保留在活动 manifest 中供重试；仅归档并消费成功记录。`--only MODULE` 同样消费该模块的成功记录，保留失败记录与其他模块记录。任何"装了但卸不掉"的改动视为 bug。
 5. **系统级模块**（保留给后续里程碑的 `sddm`/`plymouth`）：必须 `--system` 显式开启，README/PLAN 里标注变砖风险。
 
 ---
@@ -133,10 +133,11 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./install.sh --modules theme,gtk,sway   # 非交互
 ./uninstall.sh                          # 按 manifest 全量回滚
 
-make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+make check                              # shellcheck + 干跑 + 沙箱往返 + 回滚失败重试（发布前必跑）
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原
+bash tests/rollback-retry.sh            # 回滚失败保留记录、重试与单模块消费（无网络）
 tests/verify-real-tree.sh               # 真素材版：入口与 make check-real 相同
 tests/screenshots.sh                    # 在一次性无头 sway 里重生成 README 截图
 ```
