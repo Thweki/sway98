@@ -147,7 +147,7 @@ tests/screenshots.sh                    # 在一次性无头 sway 里重生成 R
 
 沙箱在 `tests/sandbox/`，用 `$HOME`/`XDG_STATE_HOME` 指向临时目录实现，`SWAY98_NO_GSETTINGS=1`
 阻止测试碰到真实 dconf。**绝不**在自己日常账户下直接跑 `./install.sh --yes --all` 做测试；
-`make check-real` 需要 `SWAY98_THEME_SRC` 指向一份 Chicago95 检出（没有会自动 SKIP 并返回 0）。
+`make check-real` 需要 `SWAY98_THEME_SRC` 指向一份 Chicago95 检出（没有会自动 SKIP 并返回 0）。 每次使用独立的 `tests/sandbox-real.XXXXXX/` 目录；日志保留在命令输出的路径。
 
 ---
 

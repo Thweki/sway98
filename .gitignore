@@ -1,5 +1,6 @@
 tests/sandbox/
 tests/sandbox-real/
+tests/sandbox-real.*/
 *.log
 
 # Local working document: implementation plan, decision log and risk register.
