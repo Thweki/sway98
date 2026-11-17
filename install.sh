@@ -23,10 +23,13 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/menu.sh"
 # shellcheck source=lib/status.sh
 . "$SWAY98_ROOT/lib/status.sh"
+# shellcheck source=lib/verify.sh
+. "$SWAY98_ROOT/lib/verify.sh"
 
 SELECTION=""
 MODE=""
 STATUS=0
+VERIFY=0
 
 usage() {
     cat <<EOF
@@ -43,6 +46,7 @@ Selection
       --system           also offer modules that change system paths (needs sudo)
 
 Behaviour
+      --verify           check managed files against the manifest, then exit
   -n, --dry-run          print every change without touching anything
   -y, --yes              assume yes for all prompts
       --verbose          log every helper call
@@ -58,12 +62,13 @@ EOF
 parse_args() {
     while (($#)); do
         case "$1" in
-            -m|--modules)   [[ "${2-}" != --status ]] || SWAY98_LOG="" die "--modules needs a module selection before --status"; SELECTION="${2:?--modules needs an argument}"; shift 2 ;;
-            --only)         [[ "${2-}" != --status ]] || SWAY98_LOG="" die "--only needs a module before --status"; SELECTION="${2:?--only needs an argument}"; shift 2 ;;
+            -m|--modules)   [[ "${2-}" != --status && "${2-}" != --verify ]] || SWAY98_LOG="" die "--modules needs a module selection before ${2-}"; SELECTION="${2:?--modules needs an argument}"; shift 2 ;;
+            --only)         [[ "${2-}" != --status && "${2-}" != --verify ]] || SWAY98_LOG="" die "--only needs a module before ${2-}"; SELECTION="${2:?--only needs an argument}"; shift 2 ;;
             -a|--all)       MODE="all"; shift ;;
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; shift ;;
             --status)       STATUS=1; SWAY98_LOG=""; shift ;;
+            --verify)       VERIFY=1; SWAY98_LOG=""; shift ;;
             -n|--dry-run)   export SWAY98_DRY_RUN=1; shift ;;
             -y|--yes)       export SWAY98_ASSUME_YES=1; shift ;;
             --system)       export SWAY98_SYSTEM=1; shift ;;
@@ -184,6 +189,14 @@ apply_selection() {
 
 main() {
     parse_args "$@"
+
+    if [[ "$VERIFY" == 1 ]]; then
+        [[ "$STATUS" == 0 ]] || die "--verify cannot be combined with --status"
+        [[ -z "$MODE" && -z "$SELECTION" ]] || die "--verify cannot be combined with module selection or --list"
+        [[ "$EUID" -ne 0 ]] || die "run --verify as the normal installing user, not as root"
+        sway98_verify_files "$(manifest_files)"
+        return
+    fi
 
     if [[ "$STATUS" == 1 ]]; then
         [[ -z "$MODE" && -z "$SELECTION" ]] || die "--status cannot be combined with module selection or --list"
