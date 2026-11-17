@@ -146,6 +146,9 @@ tests/screenshots.sh    # regenerate the images in docs/screenshots/
 Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
 the machine running them is modified — including the screenshot generator, which
 renders a private headless sway session instead of photographing your own desktop.
+The sandbox seeds [Firefox profile fixtures](tests/fixtures/firefox/README.md)
+for native, Flatpak and Snap layouts, checking installation, reinstallation and
+rollback without starting Firefox or accessing the network.
 
 The module contract (one `modules/<id>/module.sh`, optionally with `files/`) and
 the invariants the test suite enforces are written down in [AGENTS.md](AGENTS.md)
