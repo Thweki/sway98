@@ -5,9 +5,16 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-selection check-sandbox check-dryrun check-roundtrip check-real check-presets install-hooks
+# The sandbox checks delete and recreate the same tests/sandbox tree. Keep
+# recipes serial even with -j or inherited MAKEFLAGS, including explicit goals.
+.NOTPARALLEL:
 
-check: check-syntax check-shellcheck check-selection check-sandbox check-presets
+.PHONY: check check-make check-syntax check-shellcheck check-selection check-sandbox check-dryrun check-roundtrip check-real check-presets install-hooks
+
+check: check-make check-syntax check-shellcheck check-selection check-sandbox check-presets
+
+check-make:
+	@bash tests/check-make.sh
 
 check-presets:
 	@bash tests/module-presets.sh
