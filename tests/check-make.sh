@@ -35,21 +35,26 @@ trap 'rmdir -- active-check' EXIT
 printf '%s\n' "$1" >> completed-checks
 # Leave time for a competing recipe to reach the shared fixture.
 sleep 1
-[[ "${SWAY98_TEST_FAIL:-}" != "$1" ]]
+if [[ "${SWAY98_TEST_FAIL:-}" == "$1" ]]; then
+    printf 'INJECTED: %s\n' "$1" >&2
+    exit 1
+fi
 EOF
 chmod +x "$SWAY98_TEST_TMP/tests/run-sandbox.sh"
 
 _sway98_test_make() {
-    # Use a fresh jobserver rather than inheriting the parent make's slots.
-    env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL \
-        PATH="$SWAY98_TEST_TMP/bin:$PATH" \
+    local injected_failure="$1"
+    shift
+    # Use a fresh jobserver and supply the fixture's failure mode explicitly.
+    env -u MAKEFLAGS -u GNUMAKEFLAGS -u MFLAGS -u MAKELEVEL \
+        SWAY98_TEST_FAIL="$injected_failure" PATH="$SWAY98_TEST_TMP/bin:$PATH" \
         "$SWAY98_TEST_MAKE" --no-print-directory -C "$SWAY98_TEST_TMP" -j8 "$@" \
         >"$SWAY98_TEST_TMP/make.log" 2>&1
 }
 
 _sway98_test_serial() {
     rm -f -- "$SWAY98_TEST_TMP/completed-checks"
-    if ! _sway98_test_make "$@"; then
+    if ! _sway98_test_make "" "$@"; then
         cat "$SWAY98_TEST_TMP/make.log" >&2
         exit 1
     fi
@@ -63,8 +68,13 @@ _sway98_test_serial check
 _sway98_test_serial check-dryrun check-roundtrip
 _sway98_test_serial check-roundtrip check-dryrun
 
-if SWAY98_TEST_FAIL=dry-run _sway98_test_make check; then
+if _sway98_test_make dry-run check; then
     echo 'FAIL: make check swallowed a sandbox failure' >&2
+    exit 1
+fi
+if ! grep -qx 'INJECTED: dry-run' "$SWAY98_TEST_TMP/make.log"; then
+    echo 'FAIL: make check failed without reaching the injected sandbox failure' >&2
+    cat "$SWAY98_TEST_TMP/make.log" >&2
     exit 1
 fi
 echo 'ok   make check propagates a sandbox failure'
@@ -72,9 +82,16 @@ echo 'ok   make check propagates a sandbox failure'
 # Prove the fixture detects the original scheduling bug, rather than merely
 # passing because its synthetic work never overlaps on this machine.
 sed -i '/^\.NOTPARALLEL:/d' "$SWAY98_TEST_TMP/Makefile"
-if _sway98_test_make check-dryrun check-roundtrip; then
+# Give the two recipes a common goal so make schedules them as siblings.
+printf '\n.PHONY: test-parallel-sandbox\ntest-parallel-sandbox: check-dryrun check-roundtrip\n' \
+    >>"$SWAY98_TEST_TMP/Makefile"
+if _sway98_test_make "" test-parallel-sandbox; then
     echo 'FAIL: the fixture did not detect parallel sandbox recipes' >&2
     exit 1
 fi
-grep -q 'OVERLAP:' "$SWAY98_TEST_TMP/make.log"
+if ! grep -q 'OVERLAP:' "$SWAY98_TEST_TMP/make.log"; then
+    echo 'FAIL: parallel sandbox control failed without demonstrating overlap' >&2
+    cat "$SWAY98_TEST_TMP/make.log" >&2
+    exit 1
+fi
 echo 'ok   removing serialization reproduces the sandbox race'
