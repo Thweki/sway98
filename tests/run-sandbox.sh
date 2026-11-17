@@ -31,8 +31,61 @@ MODE="${1:-roundtrip}"
 # test exactly the same set.
 TEST_MODULES="theme,sway,waybar,gtk,qt,kitty,wofi,mako,swaylock,fcitx5,fonts,firefox"
 
+# Explicit expectations: do not derive these from firefox_profiles(), whose
+# discovery behavior is part of what this test exercises.
+FIREFOX_PROFILES=(
+    '.mozilla/firefox/native.default'
+    '.mozilla/firefox/native.default-release'
+    '.var/app/org.mozilla.firefox/.mozilla/firefox/flatpak profile.default-release'
+    'snap/firefox/common/.mozilla/firefox/snap.default'
+    'snap/firefox/common/.mozilla/firefox/snap.default-release'
+)
+
 pass() { printf '\033[32mok\033[0m   %s\n' "$*"; }
 fail() { printf '\033[31mFAIL\033[0m %s\n' "$*"; exit 1; }
+
+assert_firefox_installed() {
+    local profile fixture expected_js="$SANDBOX/expected-user.js"
+    for profile in "${FIREFOX_PROFILES[@]}"; do
+        fixture="$SWAY98_ROOT/tests/fixtures/firefox/home/$profile"
+        cmp -s -- "$SWAY98_ROOT/modules/firefox/files/userChrome.css" \
+            "$SANDBOX/home/$profile/chrome/userChrome.css" \
+            || fail "Firefox CSS missing or incorrect: $profile"
+
+        # Compare the whole file, including original preferences and the exact
+        # JavaScript comment markers. This also rejects duplicate blocks.
+        : >"$expected_js"
+        if [[ -f "$fixture/user.js" ]]; then
+            cat -- "$fixture/user.js" >"$expected_js"
+            printf '\n' >>"$expected_js"
+        fi
+        cat >>"$expected_js" <<'EOF'
+// >>> sway98 >>>
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+user_pref("browser.tabs.drawInTitlebar", false);
+user_pref("browser.uidensity", 1);
+// <<< sway98 <<<
+EOF
+        cmp -s -- "$expected_js" "$SANDBOX/home/$profile/user.js" \
+            || fail "Firefox preferences missing, duplicated or damaged: $profile"
+    done
+
+    # Browser data and profile registries must be untouched during installation,
+    # not merely restored by uninstall. The decoy directory must stay unthemed.
+    local fixture_file relative
+    while IFS= read -r -d '' fixture_file; do
+        relative="${fixture_file#"$SWAY98_ROOT/tests/fixtures/firefox/home/"}"
+        case "$relative" in
+            */user.js|*/chrome/userChrome.css) continue ;;
+        esac
+        cmp -s -- "$fixture_file" "$SANDBOX/home/$relative" \
+            || fail "Firefox install changed unrelated file: $relative"
+    done < <(find "$SWAY98_ROOT/tests/fixtures/firefox/home" -type f -print0)
+    diff -r -- "$SWAY98_ROOT/tests/fixtures/firefox/home/snap/firefox/common/.mozilla/firefox/not-a-profile" \
+        "$SANDBOX/home/snap/firefox/common/.mozilla/firefox/not-a-profile" \
+        || fail "Firefox install modified a non-profile directory"
+    pass "all five Firefox profiles have exact CSS and preference blocks; unrelated data is intact"
+}
 
 seed_home() {
     rm -rf -- "$SANDBOX"
@@ -58,6 +111,10 @@ EOF
 
     printf 'border-radius=4\ntext-color=#ffffff\n' >"$SANDBOX/home/.config/mako/config"
     printf '# my profile\nexport EDITOR=nvim\n' >"$SANDBOX/home/.profile"
+
+    # Seed before taking the pristine copy so rollback must restore existing
+    # files as well as remove newly created user.js, CSS and chrome directories.
+    cp -a -- "$SWAY98_ROOT/tests/fixtures/firefox/home/." "$SANDBOX/home/"
 
     # A stand-in for the Chicago95 checkout: only the paths the modules read.
     local src="$SANDBOX/Chicago95"
@@ -123,6 +180,13 @@ case "$MODE" in
             fail "dry run modified the sandbox"
         fi
         [[ -e "$SANDBOX/state/sway98/manifest/files.tsv" ]] && fail "dry run wrote a manifest"
+        for profile in "${FIREFOX_PROFILES[@]}"; do
+            grep -Fq "$SANDBOX/home/$profile/chrome/userChrome.css" "$out" \
+                || fail "dry run did not plan Firefox CSS: $profile"
+            grep -Fq "$SANDBOX/home/$profile/user.js" "$out" \
+                || fail "dry run did not plan Firefox preferences: $profile"
+        done
+        pass "dry run planned CSS and preferences for all five Firefox profiles"
         pass "dry run left the sandbox untouched"
         ;;&
 
@@ -149,6 +213,7 @@ case "$MODE" in
             [[ -e "$expected" ]] || fail "expected file missing: ${expected#"$SANDBOX"/}"
         done
         pass "expected files are in place"
+        assert_firefox_installed
 
         grep -q '# >>> sway98 >>>' "$SANDBOX/home/.config/sway/config" || fail "sway config has no marker block"
         grep -q 'include .*sway98.conf' "$SANDBOX/home/.config/sway/config" || fail "sway config has no include"
@@ -163,6 +228,7 @@ case "$MODE" in
         "$SWAY98_ROOT/install.sh" --yes --modules "$TEST_MODULES" >>"$out" 2>&1 || fail "second install run failed"
         after="$(sha256sum "$SANDBOX/home/.config/waybar/style.css" "$SANDBOX/home/.config/sway/conf.d/sway98.conf" | sha256sum)"
         [[ "$before" == "$after" ]] || fail "second run changed files that should be identical"
+        assert_firefox_installed
         pass "re-running the installer is idempotent"
 
         uout="$SANDBOX/uninstall.log"

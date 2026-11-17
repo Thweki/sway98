@@ -103,7 +103,7 @@ firefox_profiles() {
                     /^\[Profile[0-9]+\]/ { path="" }
                     /^Path=/             { path=substr($0, 6) }
                     /^Default=1/         { if (path != "") print path }
-                    END                  { if (path != "" && default == 0) print path }
+                    END                  { if (path != "") print path }
                 ' "$ini"
             )
         fi
