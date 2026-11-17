@@ -15,7 +15,7 @@ mkdir -p -- "$SWAY98_TEST_TMP/tests" "$SWAY98_TEST_TMP/bin"
 cp -- "$SWAY98_TEST_ROOT/Makefile" "$SWAY98_TEST_TMP/Makefile"
 
 # Avoid recursive self-testing and dependence on ShellCheck in this fixture.
-for stub in check-make test-selection module-presets file-hashes install-status; do
+for stub in check-make test-selection module-presets file-hashes install-status verify-files; do
     printf '#!/usr/bin/env bash\nexit 0\n' >"$SWAY98_TEST_TMP/tests/$stub.sh"
 done
 printf '#!/usr/bin/env bash\nexit 0\n' >"$SWAY98_TEST_TMP/bin/shellcheck"
