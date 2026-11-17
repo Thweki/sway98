@@ -106,7 +106,8 @@ include_block() {
 # ini_set <file> <section> <key> <value>
 #
 # Sets key=value inside [section], creating the file, the section or the key as
-# needed. Comments and unrelated keys are preserved.
+# needed. Comments and unrelated keys are preserved. Accept LF and CRLF input;
+# generated lines use the first line's ending (new files use LF).
 ini_set() {
     local file="$1" section="$2" key="$3" value="$4"
     local tmp
@@ -116,19 +117,22 @@ ini_set() {
         awk -v section="$section" -v key="$key" -v value="$value" '
             function emit_missing() {
                 if (in_section && !done) {
-                    printf "%s=%s\n", key, value
+                    printf "%s=%s%s\n", key, value, eol
                     done = 1
                 }
             }
+            NR == 1 { eol = ($0 ~ /\r$/ ? "\r" : "") }
             /^\[/ {
                 emit_missing()
-                if ($0 == "[" section "]") { in_section = 1 } else { in_section = 0 }
+                header = $0
+                sub(/\r$/, "", header)
+                if (header == "[" section "]") { in_section = 1 } else { in_section = 0 }
                 print
                 next
             }
             {
                 if (in_section && $0 ~ "^[ \t]*" key "[ \t]*=") {
-                    printf "%s=%s\n", key, value
+                    printf "%s=%s%s\n", key, value, eol
                     done = 1
                     next
                 }
@@ -136,8 +140,8 @@ ini_set() {
             }
             END {
                 if (!done) {
-                    if (!in_section) { printf "[%s]\n", section }
-                    printf "%s=%s\n", key, value
+                    if (!in_section) { printf "[%s]%s\n", section, eol }
+                    printf "%s=%s%s\n", key, value, eol
                 }
             }
         ' "$file" >"$tmp"
