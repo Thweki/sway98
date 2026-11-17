@@ -5,9 +5,9 @@
 
 SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 
-.PHONY: check check-syntax check-shellcheck check-sandbox check-dryrun check-roundtrip check-real check-presets install-hooks
+.PHONY: check check-syntax check-shellcheck check-selection check-sandbox check-dryrun check-roundtrip check-real check-presets install-hooks
 
-check: check-syntax check-shellcheck check-sandbox check-presets
+check: check-syntax check-shellcheck check-selection check-sandbox check-presets
 
 check-presets:
 	@bash tests/module-presets.sh
@@ -15,6 +15,10 @@ check-presets:
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
 	@echo "bash -n: clean"
+
+# Reject invalid numeric selections before any module can be applied.
+check-selection:
+	@bash tests/test-selection.sh
 
 # Against a real Chicago95 checkout (symlinks, depth, 4900+ files). Skips itself
 # with exit 0 when no checkout is found, so CI stays green without one.
