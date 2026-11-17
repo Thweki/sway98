@@ -52,7 +52,7 @@ expected="$("$SWAY98_HASH_TEST_SUM" -- -binary)"
 [[ "$(sha256_of -binary)" == "${expected%% *}" ]] || fail 'binary file digest'
 for escaped_name in 'literal\slash' $'line\nbreak' $'carriage\rreturn'; do
     printf abc >"$escaped_name"
-    expected="$("$SWAY98_HASH_TEST_SUM" -- "$escaped_name" | "$SWAY98_HASH_TEST_AWK" '{print $1}')"
+    expected="$("$SWAY98_HASH_TEST_SUM" -- "$escaped_name" | "$SWAY98_HASH_TEST_AWK" "{print \$1}")"
     [[ "$(sha256_of "$escaped_name")" == "$expected" ]] || fail 'legacy escaped-name digest'
 done
 printf 'ok: empty, text, binary, spaced, escaped and leading-dash paths, symlink\n'
