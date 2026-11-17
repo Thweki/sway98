@@ -9,9 +9,9 @@ SHELL_FILES := $(shell find . -name '*.sh' -not -path './.git/*')
 # recipes serial even with -j or inherited MAKEFLAGS, including explicit goals.
 .NOTPARALLEL:
 
-.PHONY: check check-make check-syntax check-shellcheck check-selection check-sandbox check-dryrun check-roundtrip check-real check-hashes check-presets install-hooks
+.PHONY: check check-make check-syntax check-shellcheck check-selection check-sandbox check-dryrun check-roundtrip check-real check-hashes check-presets check-install-status install-hooks
 
-check: check-make check-syntax check-shellcheck check-selection check-sandbox check-hashes check-presets
+check: check-make check-syntax check-shellcheck check-selection check-sandbox check-hashes check-presets check-install-status
 
 check-make:
 	@bash tests/check-make.sh
@@ -21,6 +21,9 @@ check-hashes:
 
 check-presets:
 	@bash tests/module-presets.sh
+
+check-install-status:
+	@bash tests/install-status.sh
 
 check-syntax:
 	@git ls-files -z -- '*.sh' | xargs -0 -r -n 1 bash -n
