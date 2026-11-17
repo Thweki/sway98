@@ -41,7 +41,7 @@ chmod +x "$SWAY98_TEST_TMP/tests/run-sandbox.sh"
 
 _sway98_test_make() {
     # Use a fresh jobserver rather than inheriting the parent make's slots.
-    env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL \
+    env -u MAKEFLAGS -u GNUMAKEFLAGS -u MFLAGS -u MAKELEVEL \
         PATH="$SWAY98_TEST_TMP/bin:$PATH" \
         "$SWAY98_TEST_MAKE" --no-print-directory -C "$SWAY98_TEST_TMP" -j8 "$@" \
         >"$SWAY98_TEST_TMP/make.log" 2>&1
@@ -72,9 +72,16 @@ echo 'ok   make check propagates a sandbox failure'
 # Prove the fixture detects the original scheduling bug, rather than merely
 # passing because its synthetic work never overlaps on this machine.
 sed -i '/^\.NOTPARALLEL:/d' "$SWAY98_TEST_TMP/Makefile"
-if _sway98_test_make check-dryrun check-roundtrip; then
+# Give the two recipes a common goal so make schedules them as siblings.
+printf '\n.PHONY: test-parallel-sandbox\ntest-parallel-sandbox: check-dryrun check-roundtrip\n' \
+    >>"$SWAY98_TEST_TMP/Makefile"
+if _sway98_test_make test-parallel-sandbox; then
     echo 'FAIL: the fixture did not detect parallel sandbox recipes' >&2
     exit 1
 fi
-grep -q 'OVERLAP:' "$SWAY98_TEST_TMP/make.log"
+if ! grep -q 'OVERLAP:' "$SWAY98_TEST_TMP/make.log"; then
+    echo 'FAIL: parallel sandbox control failed without demonstrating overlap' >&2
+    cat "$SWAY98_TEST_TMP/make.log" >&2
+    exit 1
+fi
 echo 'ok   removing serialization reproduces the sandbox race'
