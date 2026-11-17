@@ -82,16 +82,17 @@ include_block() {
         if ! awk -v b="$begin" -v e="$end" '
             $0 == b { if (skip) exit 1; skip = 1; next }
             $0 == e { if (!skip) exit 1; skip = 0; next }
-            !skip   { print }
+            !skip {
+                # Buffer only empty lines, preserving whitespace-only content.
+                if ($0 == "") { blanks++; next }
+                while (blanks > 0) { print ""; blanks-- }
+                print
+            }
             END     { if (skip) exit 1 }
         ' "$file" >"$tmp"; then
             rm -f -- "$tmp"
             die "cannot update block '$id' in $file: unreadable file or malformed markers; file left unchanged"
         fi
-        # Trim trailing blank lines the strip may have left behind.
-        while [[ -s "$tmp" && -z "$(tail -n 1 "$tmp")" ]]; do
-            sed -i '$d' "$tmp"
-        done
         # Keep exactly one trailing newline before appending the block.
         if [[ -s "$tmp" ]]; then
             printf '\n' >>"$tmp"
