@@ -173,6 +173,10 @@ tests/screenshots.sh    # regenerate the images in docs/screenshots/
 Every test runs against a throwaway `$HOME` under `tests/sandbox/`, so nothing on
 the machine running them is modified — including the screenshot generator, which
 renders a private headless sway session instead of photographing your own desktop.
+Dry-run checks compare the controlled home, state, cache and data trees,
+including empty directories and home caches. They also exercise the standalone
+sound fetcher with network commands blocked and preview uninstall against an
+installed sandbox without changing its files or manifests.
 The sandbox seeds [Firefox profile fixtures](tests/fixtures/firefox/README.md)
 for native, Flatpak and Snap layouts, checking installation, reinstallation and
 rollback without starting Firefox or accessing the network.
