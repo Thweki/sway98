@@ -105,6 +105,7 @@ module picker, `grim`/`slurp` for screenshots.
 ```
 ./install.sh --list                  list modules and exit
 ./install.sh --status                summarize recorded installation state
+./install.sh --verify                check installed files without changing them
 ./install.sh --dry-run --all         full rehearsal, zero side effects
 ./install.sh --modules theme,gtk,sway
 ./install.sh --recommended           the set that gives you the look fastest
@@ -124,6 +125,19 @@ This is a record summary, not a check of current file contents or installation
 health: a recorded `installed` result can include skipped modules, and partial
 uninstalls currently retain records. Archived history is excluded. `--status`
 cannot be combined with module selection or `--list`.
+
+Run `--verify` as the normal installing user, not as root. It reads the active
+file manifest and compares each path with its latest installed SHA-256 hash,
+so edits or missing files can be spotted before a reinstall or rollback. It
+reports each path and a summary without creating logs, prompting, downloading,
+running modules or contacting the desktop. It cannot be combined with
+`--status`, module selection or `--list`. Exit status is 1 for changed, missing,
+wrong-type or unreadable files, or an invalid/unreadable manifest; otherwise 0.
+An absent or empty file manifest reports nothing to verify. Symlinks are checked
+for presence and type but reported as **UNVERIFIED**, since their targets are not
+stored in the manifest. A symlinked manifest is refused. Permissions, backups
+and desktop settings are not checked;
+a successful exit does not certify those or the symlink targets.
 
 ## Honest limitations
 
