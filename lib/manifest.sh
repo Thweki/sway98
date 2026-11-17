@@ -31,7 +31,12 @@ manifest_init() {
     done
 }
 
-sha256_of() { sha256sum -- "$1" | awk '{print $1}'; }
+sha256_of() {
+    local digest
+    digest="$(sha256sum -- "$1")" || return
+    # Avoid starting a text parser for every file checked by the installer.
+    printf '%s\n' "${digest%% *}"
+}
 
 # backup_of <path> — copy a file aside for the current run and echo the copy path.
 backup_of() {
