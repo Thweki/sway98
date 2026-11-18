@@ -32,7 +32,7 @@ sway98_apply() {
             continue
         fi
         flatpak override --user --filesystem="$path:ro"
-        record_cmd "flatpak override --user --nofilesystem=$path"
+        record_cmd_argv flatpak override --user "--nofilesystem=$path"
         ok "shared read-only with Flatpak applications: $path"
     done
 
