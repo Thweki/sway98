@@ -89,43 +89,74 @@ archive_org_fetch() {
     return 1
 }
 
-# git_clone_pinned <url> <commit-or-ref> <dest>
+# git_clone_pinned <url> <full-sha1-commit-id> <dest>
 #
-# Clones at an exact revision with a depth of 1. Re-running against an existing
-# clone re-checks out the pinned revision instead of re-downloading.
+# A new checkout fetches from the configured upstream. An existing managed
+# checkout is only re-pinned from local objects and must have no tracked edits.
 git_clone_pinned() {
-    local url="$1" ref="$2" dest="$3"
+    local url="$1" ref="$2" dest="$3" fetched head dirty
+    local GIT_ALLOW_PROTOCOL GIT_NO_LAZY_FETCH
 
-    require_cmd git
+    [[ "$ref" =~ ^[[:xdigit:]]{40}$ ]] \
+        || die "git_clone_pinned: expected a full commit id (40 hex digits), got $ref"
+    ref="${ref,,}"
 
-    if [[ -d "$dest/.git" ]]; then
-        if [[ "$(git -C "$dest" rev-parse --verify --quiet HEAD)" == "$ref"* ]] \
-            || git -C "$dest" rev-parse --verify --quiet "$ref" >/dev/null; then
-            ok "upstream checkout already at $(git -C "$dest" rev-parse --short HEAD)"
-            return 0
-        fi
-        info "re-pinning $dest to $ref"
-        git -C "$dest" fetch --quiet --depth 1 origin "$ref"
-        git -C "$dest" checkout --quiet FETCH_HEAD
+    if is_dry_run; then
+        dry "would pin $dest to $ref from $url"
         return 0
     fi
 
-    [[ -e "$dest" ]] && die "git_clone_pinned: $dest exists and is not a git checkout"
+    require_cmd git
+    if [[ -d "$dest/.git" && ! -L "$dest" && ! -L "$dest/.git" ]]; then
+        # Existing clones must not trigger network I/O, including lazy fetches.
+        export GIT_ALLOW_PROTOCOL='' GIT_NO_LAZY_FETCH=1
+        head="$(git -C "$dest" rev-parse --verify --quiet 'HEAD^{commit}')" \
+            || die "cannot read HEAD in $dest"
+        dirty="$(git -C "$dest" -c core.fsmonitor=false --no-optional-locks status --porcelain=v1 --untracked-files=no --ignore-submodules=none)" \
+            || die "cannot inspect tracked files in $dest"
+        [[ -z "$dirty" ]] || die "tracked changes in $dest; leaving checkout untouched"
+        if [[ "$head" == "$ref" ]]; then
+            ok "upstream checkout already at $ref"
+            return 0
+        fi
+        git -C "$dest" cat-file -e "$ref^{commit}" 2>/dev/null \
+            || die "pinned commit $ref is missing in $dest; restore that commit or use an explicit source tree"
+        info "re-pinning $dest to cached commit $ref"
+    else
+        [[ ! -e "$dest" && ! -L "$dest" ]] \
+            || die "git_clone_pinned: $dest exists and is not a git checkout (real directory required)"
+        mkdir -p -- "$(dirname -- "$dest")" || die "cannot create parent of $dest"
+        git init --quiet --object-format=sha1 "$dest" || die "cannot initialize $dest"
+        git -C "$dest" remote add origin "$url" || die "cannot set origin in $dest"
+        git -C "$dest" fetch --quiet --depth 1 origin "$ref" \
+            || die "failed to fetch $ref from $url"
+        fetched="$(git -C "$dest" rev-parse --verify --quiet 'FETCH_HEAD^{commit}')" \
+            || die "cannot resolve fetched commit in $dest"
+        [[ "$fetched" == "$ref" ]] \
+            || die "upstream commit mismatch: expected $ref, fetched $fetched"
+    fi
 
-    mkdir -p -- "$(dirname -- "$dest")"
-    git init --quiet "$dest"
-    git -C "$dest" remote add origin "$url"
-    git -C "$dest" fetch --quiet --depth 1 origin "$ref" \
-        || die "failed to fetch $ref from $url"
-    git -C "$dest" checkout --quiet FETCH_HEAD
-    ok "cloned $(basename -- "$url") at $(git -C "$dest" rev-parse --short HEAD)"
+    git -C "$dest" -c core.hooksPath=/dev/null checkout --quiet --detach --no-overwrite-ignore "$ref" \
+        || die "failed to check out $ref in $dest without overwriting existing files"
+    head="$(git -C "$dest" rev-parse --verify --quiet 'HEAD^{commit}')" \
+        || die "cannot read HEAD in $dest"
+    [[ "$head" == "$ref" ]] \
+        || die "upstream commit mismatch: expected $ref, HEAD is $head"
+    ok "upstream checkout pinned to $ref"
 }
 
 # ensure_chicago95 — the shared upstream checkout used by several modules.
 ensure_chicago95() {
-    if [[ -d "$SWAY98_THEME_SRC/Theme/Chicago95" ]]; then
-        ok "Chicago95 sources present: $SWAY98_THEME_SRC"
-        return 0
+    if [[ "$SWAY98_THEME_SRC" != "$SWAY98_STATE/upstream/Chicago95" ]]; then
+        if [[ -d "$SWAY98_THEME_SRC/Theme/Chicago95" ]]; then
+            ok "external Chicago95 sources present (caller-managed): $SWAY98_THEME_SRC"
+            return 0
+        fi
+        if [[ -e "$SWAY98_THEME_SRC" || -L "$SWAY98_THEME_SRC" ]]; then
+            if ! is_dry_run; then
+                die "external Chicago95 source is incomplete; leaving $SWAY98_THEME_SRC untouched"
+            fi
+        fi
     fi
     if is_dry_run; then
         dry "would clone Chicago95 ($SWAY98_CHICAGO95_REF) into $SWAY98_THEME_SRC"

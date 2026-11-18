@@ -82,7 +82,10 @@ sway98_revert() { ... }               # 可选：仅用于 manifest 无法表达
 | `ini_set <file> <section> <key> <value>` | 幂等改 INI 键，首次改动时整文件进 manifest；支持 LF / CRLF，生成行沿用首行换行符，新文件用 LF |
 | `http_get <url> <dest>` | curl 带重试/超时/UA |
 | `archive_org_fetch <item> <remote-path> <dest> <sha1>` | 见 §6，唯一允许的微软素材下载方式 |
-| `git_clone_pinned <url> <ref> <dest>` | 浅克隆并 checkout 指定 commit，校验存在 |
+| `git_clone_pinned <url> <full-sha1-commit-id> <dest>` | 既有托管克隆只复用缓存对象，保留用户改动；新克隆才 fetch，checkout 后校验完整 HEAD |
+
+默认 `$STATE/upstream/Chicago95` 是托管克隆，校验完整 HEAD 与已跟踪文件；
+发现改动或本地缺少 pin 时停止，不重置、不联网补齐。显式外部源码树保持原样。
 
 `$STATE` = `${XDG_STATE_HOME:-~/.local/state}/sway98`。
 manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/sha_old/backup）、`manifest/commands.tsv`（module/revert_cmd）、`manifest/modules.tsv`（module/version/timestamp）。
@@ -135,6 +138,7 @@ manifest 为 TSV 三件套：`manifest/files.tsv`（module/action/path/sha_new/s
 ./uninstall.sh                          # 按 manifest 全量回滚
 
 make check                              # shellcheck + 干跑 + 沙箱往返（发布前必跑）
+make check-upstream                     # 本地 Git fixture：校验完整 pin，无网络
 make check-real                         # 对真实 Chicago95 做一次装→卸（覆盖符号链接与深目录）
 tests/run-sandbox.sh dry-run            # 只跑干跑断言
 tests/run-sandbox.sh roundtrip          # 装→重装→卸，要求沙箱 $HOME 逐字节还原

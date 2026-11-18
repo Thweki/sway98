@@ -100,6 +100,17 @@ sudo pacman -S --needed sway waybar kitty wofi mako swaylock fcitx5 fcitx5-gtk \
 Optional: `paru` or `yay` for the AUR copy of Chicago95, `gum` for a nicer
 module picker, `grim`/`slurp` for screenshots.
 
+The default Chicago95 checkout is managed. It must have no tracked changes and
+its HEAD must match the full pinned commit. If necessary, the installer checks
+out the cached commit without fetching. If that commit is missing, it stops
+rather than fetching into an existing checkout. Fresh checkouts still fetch
+the configured pin. Dry runs do not change the checkout.
+
+Set `SWAY98_THEME_SRC=/path/to/Chicago95` to use a caller-managed tree that
+already contains `Theme/Chicago95`. The installer uses a complete external
+tree as-is (no Git metadata needed) and leaves incomplete existing trees
+untouched. A missing path is cloned at the pin.
+
 ## Options
 
 ```
@@ -185,6 +196,7 @@ dependencies are `curl`, `git` and coreutils.
 
 ```
 make check              # shellcheck, dry run, install/uninstall roundtrip
+make check-upstream     # verify the exact pin with local Git fixtures
 make check-real         # the same against a real Chicago95 checkout
 tests/screenshots.sh    # regenerate the images in docs/screenshots/
 ```
