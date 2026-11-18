@@ -71,6 +71,14 @@ record_cmd() {
     printf '%s\t%s\n' "${SWAY98_MODULE:-manual}" "$cmd" >>"$(manifest_commands)"
 }
 
+# Serialize arguments as Bash words, including embedded whitespace, for the
+# existing rollback command column. A saved argv occupies exactly one TSV row.
+record_cmd_argv() {
+    local revert_cmd
+    printf -v revert_cmd '%q ' "$@"
+    record_cmd "$revert_cmd"
+}
+
 record_module() {
     local module="$1" status="$2"
     is_dry_run && return 0
