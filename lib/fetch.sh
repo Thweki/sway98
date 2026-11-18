@@ -109,7 +109,7 @@ git_clone_pinned() {
     require_cmd git
     if [[ -d "$dest/.git" && ! -L "$dest" && ! -L "$dest/.git" ]]; then
         # Existing clones must not trigger network I/O, including lazy fetches.
-        export GIT_ALLOW_PROTOCOL= GIT_NO_LAZY_FETCH=1
+        export GIT_ALLOW_PROTOCOL='' GIT_NO_LAZY_FETCH=1
         head="$(git -C "$dest" rev-parse --verify --quiet 'HEAD^{commit}')" \
             || die "cannot read HEAD in $dest"
         dirty="$(git -C "$dest" -c core.fsmonitor=false --no-optional-locks status --porcelain=v1 --untracked-files=no --ignore-submodules=none)" \
