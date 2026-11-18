@@ -104,6 +104,7 @@ module picker, `grim`/`slurp` for screenshots.
 
 ```
 ./install.sh --list                  list modules and exit
+./install.sh --plan --recommended    summarize a proposed installation
 ./install.sh --status                summarize recorded installation state
 ./install.sh --verify                check installed files without changing them
 ./install.sh --dry-run --all         full rehearsal, zero side effects
@@ -138,6 +139,15 @@ for presence and type but reported as **UNVERIFIED**, since their targets are no
 stored in the manifest. A symlinked manifest is refused. Permissions, backups
 and desktop settings are not checked;
 a successful exit does not certify those or the symlink targets.
+
+`--plan` accepts the same module selections as installation, including the
+plain-text interactive picker. It shows each selected module's intended changes,
+scope, declared Arch packages, and dependencies. Like `--dry-run`, it assumes
+dependency prompts are accepted and labels added modules. It does not apply
+modules, check installed packages, download assets, or write logs or manifests.
+It cannot be combined with `--list`, `--status`, or `--verify`. The summary
+uses module metadata from this checkout, not an exact file diff or a guarantee
+that every module can run; installation can still skip unavailable components.
 
 ## Honest limitations
 

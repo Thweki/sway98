@@ -122,7 +122,7 @@ validate_selection() {
     done
 }
 
-# menu_select — interactive multi-select. Prints the chosen ids, one per line.
+# menu_select [plain=0] — interactive multi-select. Prints the chosen ids, one per line.
 menu_select() {
     local id desc scope rec req pkgs line
     local -a ids=() descs=()
@@ -131,7 +131,7 @@ menu_select() {
         ids+=("$id"); descs+=("$desc")
     done < <(modules_table)
 
-    if have gum && [[ -t 0 ]]; then
+    if [[ "${1:-0}" != 1 ]] && have gum && [[ -t 0 ]]; then
         local -a args=()
         for line in "${!ids[@]}"; do
             args+=("${ids[line]} — ${descs[line]}")
