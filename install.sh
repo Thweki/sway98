@@ -27,6 +27,7 @@ export SWAY98_ROOT
 . "$SWAY98_ROOT/lib/verify.sh"
 
 SELECTION=""
+EXCLUSIONS=""
 MODE=""
 STATUS=0
 VERIFY=0
@@ -43,6 +44,7 @@ Selection
   -m, --modules LIST     comma separated module ids, numbers or ranges (1,3-5)
   -a, --all              select every available module
   -r, --recommended      select the recommended set
+      --exclude LIST      omit exact comma-separated module ids (repeatable)
   -l, --list             list modules and exit
       --status           summarize active manifest records without writing
       --system           also offer modules that change system paths (needs sudo)
@@ -57,7 +59,7 @@ Behaviour
 
 Examples
   ./install.sh --list
-  ./install.sh --plan --recommended
+  ./install.sh --plan --recommended --exclude theme
   ./install.sh --dry-run --all
   ./install.sh --modules theme,gtk,sway,waybar,kitty
 EOF
@@ -66,8 +68,13 @@ EOF
 parse_args() {
     while (($#)); do
         case "$1" in
-            -m|--modules)   [[ "${2-}" != --status && "${2-}" != --verify && "${2-}" != --plan ]] || SWAY98_LOG="" die "--modules needs a module selection before ${2-}"; SELECTION="${2:?--modules needs an argument}"; shift 2 ;;
-            --only)         [[ "${2-}" != --status && "${2-}" != --verify && "${2-}" != --plan ]] || SWAY98_LOG="" die "--only needs a module before ${2-}"; SELECTION="${2:?--only needs an argument}"; shift 2 ;;
+            -m|--modules)   [[ "${2-}" != --status && "${2-}" != --verify && "${2-}" != --plan && "${2-}" != --exclude ]] || SWAY98_LOG="" die "--modules needs a module selection before ${2-}"; SELECTION="${2:?--modules needs an argument}"; shift 2 ;;
+            --only)         [[ "${2-}" != --status && "${2-}" != --verify && "${2-}" != --plan && "${2-}" != --exclude ]] || SWAY98_LOG="" die "--only needs a module before ${2-}"; SELECTION="${2:?--only needs an argument}"; shift 2 ;;
+            --exclude)
+                [[ "${2:-}" =~ ^[a-zA-Z0-9_-]+(,[a-zA-Z0-9_-]+)*$ ]] \
+                    || SWAY98_LOG="" die "--exclude needs comma separated module ids"
+                EXCLUSIONS+=" ${2//,/ }"
+                shift 2 ;;
             -a|--all)       MODE="all"; shift ;;
             -r|--recommended) MODE="recommended"; shift ;;
             -l|--list)      MODE="list"; SAW_LIST=1; shift ;;
@@ -81,6 +88,19 @@ parse_args() {
             -h|--help)      usage; exit 0 ;;
             *)              usage >&2; SWAY98_LOG="" die "unknown option: $1" ;;
         esac
+    done
+}
+
+_sway98_module_excluded() {
+    [[ " $EXCLUSIONS " == *" $1 "* ]]
+}
+
+_sway98_filter_exclusions() {
+    local id
+    for id in $1; do
+        if ! _sway98_module_excluded "$id"; then
+            printf '%s\n' "$id"
+        fi
     done
 }
 
@@ -147,6 +167,10 @@ expand_requirements() {
         [[ -n "$req" ]] || continue
         local r
         for r in $req; do
+            if _sway98_module_excluded "$r"; then
+                warn "'$id' selected without '$r' (--exclude)"
+                continue
+            fi
             if ! grep -qw -- "$r" <<<"$out"; then
                 if confirm "module '$id' works best with '$r'; install '$r' too?"; then
                     out="$out $r"
@@ -204,7 +228,9 @@ sway98_print_plan() {
         printf '\n  Changes: %s\n' "$(module_field "$id" desc)"
         printf '  Packages (not checked or installed): %s\n' "$(module_field "$id" pkgs)"
         for requirement in $(module_field "$id" requires); do
-            if [[ " $selection " == *" $requirement "* ]]; then
+            if _sway98_module_excluded "$requirement"; then
+                printf '  Requires: %s (excluded)\n' "$requirement"
+            elif [[ " $selection " == *" $requirement "* ]]; then
                 printf '  Requires: %s (selected)\n' "$requirement"
             else
                 printf '  Requires: %s (not selected)\n' "$requirement"
@@ -214,8 +240,29 @@ sway98_print_plan() {
     printf '\nNo modules applied, downloads performed, or installation state written.\n'
 }
 
+prepare_install() {
+    if [[ "$SWAY98_DRY_RUN" != "1" ]]; then
+        mkdir -p -- "$SWAY98_STATE/log"
+        export SWAY98_LOG="$SWAY98_STATE/log/install-$SWAY98_TS.log"
+    fi
+    step "$SWAY98_NAME $SWAY98_VERSION"
+    preflight
+    manifest_init
+}
+
 main() {
     parse_args "$@"
+
+    if [[ -n "$EXCLUSIONS" ]]; then
+        [[ "$VERIFY" == 0 && "$STATUS" == 0 && "$SAW_LIST" == 0 ]] \
+            || SWAY98_LOG="" die "--exclude cannot be combined with --verify, --status, or --list"
+        SWAY98_LOG=""
+        local id
+        for id in $EXCLUSIONS; do
+            module_file "$id" >/dev/null \
+                || die "unknown module to exclude: $id (see --list)"
+        done
+    fi
 
     if [[ "$SWAY98_PLAN" == "1" ]]; then
         [[ "$VERIFY" == 0 && "$STATUS" == 0 && "$SAW_LIST" == 0 ]] \
@@ -242,15 +289,10 @@ main() {
         list) list_modules; exit 0 ;;
     esac
 
-    if [[ "$SWAY98_DRY_RUN" != "1" ]]; then
-        mkdir -p -- "$SWAY98_STATE/log"
-        export SWAY98_LOG="$SWAY98_STATE/log/install-$SWAY98_TS.log"
-    fi
-
-    step "$SWAY98_NAME $SWAY98_VERSION"
-    if [[ "$SWAY98_PLAN" != "1" ]]; then
-        preflight
-        manifest_init
+    if [[ "$SWAY98_PLAN" == "1" ]]; then
+        step "$SWAY98_NAME $SWAY98_VERSION"
+    elif [[ -z "$EXCLUSIONS" ]]; then
+        prepare_install
     fi
 
     local selection="" requested
@@ -264,6 +306,11 @@ main() {
                      fi ;;
     esac
 
+    if [[ -n "$EXCLUSIONS" ]]; then
+        validate_selection "$selection"
+        selection="$(_sway98_filter_exclusions "$selection" | tr '\n' ' ')"
+    fi
+
     if [[ -z "${selection// /}" ]]; then
         info "nothing selected, nothing to do"
         exit 0
@@ -272,6 +319,9 @@ main() {
     selection="$(tr ' ' '\n' <<<"$selection" | sed '/^$/d' | awk '!seen[$0]++' | tr '\n' ' ')"
     validate_selection "$selection"
     requested="$selection"
+    if [[ "$SWAY98_PLAN" != "1" && -n "$EXCLUSIONS" ]]; then
+        prepare_install
+    fi
     selection="$(expand_requirements "$selection" | tr '\n' ' ')"
 
     if [[ "$SWAY98_PLAN" == "1" ]]; then

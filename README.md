@@ -105,6 +105,7 @@ module picker, `grim`/`slurp` for screenshots.
 ```
 ./install.sh --list                  list modules and exit
 ./install.sh --plan --recommended    summarize a proposed installation
+./install.sh --plan --all --exclude sounds,flatpak
 ./install.sh --status                summarize recorded installation state
 ./install.sh --verify                check installed files without changing them
 ./install.sh --dry-run --all         full rehearsal, zero side effects
@@ -148,6 +149,15 @@ modules, check installed packages, download assets, or write logs or manifests.
 It cannot be combined with `--list`, `--status`, or `--verify`. The summary
 uses module metadata from this checkout, not an exact file diff or a guarantee
 that every module can run; installation can still skip unavailable components.
+
+`--exclude` takes a comma-separated list of exact module IDs and can be
+repeated. It filters presets, explicit selections and the interactive picker,
+including in `--plan` and `--dry-run`. Dependency prompts never add an excluded
+module back, even with `--yes`; the installer warns if a selection needs one.
+Unknown IDs are rejected before installation starts. Excluding everything
+does not uninstall anything or create installer state. Use `--exclude` only
+with installation, `--dry-run` or `--plan`, not with `--list`, `--status` or
+`--verify`.
 
 ## Honest limitations
 
