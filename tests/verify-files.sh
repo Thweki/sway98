@@ -94,8 +94,16 @@ SWAY98_MODULE=latest
 printf 'latest\n' >"$2/source"
 install_file "$2/source" "$HOME/tracked file"
 install_file "$2/source" "$HOME/second"
-install_file "$2/source" "$HOME/back\slash"
-install_file "$2/source" "$HOME/"$'carriage\rreturn'
+# Historical manifests may contain these paths; the current installer rejects
+# them. Write the legacy TSV rows directly, reproducing GNU sha256sum's leading
+# escape marker rather than bypassing the current manifest validation.
+for legacy_path in "$HOME/back\slash" "$HOME/"$'carriage\rreturn'; do
+    cp -- "$2/source" "$legacy_path"
+    legacy_digest="$(sha256sum -- "$legacy_path")"
+    legacy_digest="${legacy_digest%% *}"
+    [[ "$legacy_digest" == '\'* ]] || { printf 'Missing legacy hash escape marker\n' >&2; exit 1; }
+    printf 'latest\tcreate\t%s\t%s\t\t\n' "$legacy_path" "$legacy_digest" >>"$(manifest_files)"
+done
 ln -s absent "$2/source-link"
 install_symlink "$2/source-link" "$HOME/link"
 # A verifier must never evaluate commands or display their contents.
